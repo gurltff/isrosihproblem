@@ -16,7 +16,35 @@
     <title>Sentinel · Burn-in Intelligence</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot" style="font: 15px/1.5 system-ui, sans-serif; color: #2f4156; padding: 48px 24px; max-width: 560px">
+        <div style="font: 700 28px Georgia, serif; margin-bottom: 8px">Sentinel</div>
+        <div id="boot-msg">Loading…</div>
+      </div>
+    </div>
+    <script>
+      // If the app cannot start, say why instead of leaving a blank page.
+      (function () {
+        function show(msg) {
+          var el = document.getElementById("boot-msg");
+          if (!el) return;
+          el.innerHTML =
+            '<b style="color:#a5432f">The app could not start.</b><br>' + msg +
+            '<br><br>Try a hard refresh (Ctrl+Shift+R, or Cmd+Shift+R on a Mac). If it still fails, send a screenshot of this message.';
+        }
+        window.addEventListener("error", function (e) {
+          var t = e.target;
+          if (t && t !== window && (t.src || t.href)) show("A file failed to load: " + (t.src || t.href));
+          else if (e.message) show("Error: " + e.message);
+        }, true);
+        window.addEventListener("unhandledrejection", function (e) {
+          show("Error: " + (e.reason && e.reason.message ? e.reason.message : e.reason));
+        });
+        setTimeout(function () {
+          if (document.getElementById("boot")) show("It is taking unusually long. Your connection may be blocking a file.");
+        }, 15000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

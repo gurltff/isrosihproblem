@@ -42,7 +42,7 @@ export default function Passport() {
       points: lotBand.map((r) => ({ hour: r.hour, value: r.median })),
     });
     const proj = data.projection.params[p.key];
-    const last = data.series[p.key]?.at(-1)?.hour ?? 0;
+    const last = data.series[p.key]?.[(data.series[p.key]?.length ?? 1) - 1]?.hour ?? 0;
     if (proj && last < 168 && data.projection.as_of > 0) {
       series.push({
         id: "proj",
@@ -204,8 +204,8 @@ export default function Passport() {
                         <div className="small faint">{x.label}</div>
                       </td>
                       <td className="num">{fmt(x, s[0]?.value)}</td>
-                      <td className="num">{fmt(x, s.at(-1)?.value)}</td>
-                      <td className="num muted">{fmt(x, band.at(-1)?.median)}</td>
+                      <td className="num">{fmt(x, s[s.length - 1]?.value)}</td>
+                      <td className="num muted">{fmt(x, band[band.length - 1]?.median)}</td>
                       <td
                         className="num"
                         style={{ fontWeight: 700, color: z >= 6 ? "var(--brick)" : z >= 3.5 ? "var(--teal)" : "var(--ink-3)" }}

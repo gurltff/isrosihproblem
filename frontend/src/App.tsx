@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Layout from "./components/Layout";
 import { Loading } from "./components/ui";
 import Chamber from "./pages/Chamber";
@@ -27,6 +28,7 @@ export default function App() {
     <Layout>
       <ScrollTop />
       <Suspense fallback={<Loading height={480} />}>
+        <ErrorBoundary resetKey={pathname}>
         <div className="page" key={pathname}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -42,6 +44,7 @@ export default function App() {
           <Route path="*" element={<div className="empty">Page not found.</div>} />
         </Routes>
         </div>
+        </ErrorBoundary>
       </Suspense>
     </Layout>
   );
