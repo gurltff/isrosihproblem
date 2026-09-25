@@ -38,6 +38,8 @@ DEFECTS = [
     "multivariate",
     "marginal_leak",
     "vth_edge",
+    "late_onset",
+    "late_onset",
 ]
 
 
@@ -75,6 +77,11 @@ def component(rng: np.random.Generator, defect: str | None):
         lot["gl0"] *= 1.6
     elif defect == "marginal_leak":
         lot["leak0"] *= rng.uniform(2.0, 2.4)
+    elif defect == "late_onset":
+        # Looks normal early, then fails abruptly (die-attach style, as in
+        # about half of NASA's aged MOSFETs). Only a later read point shows it.
+        lot["onset"] = float(rng.uniform(40, 90))
+        lot["jump"] = str(rng.choice(["leak", "vth"]))
     elif defect == "vth_edge":
         lot["vth0"] = rng.uniform(3.84, 3.9)
         lot["vth_a"] = rng.uniform(0.035, 0.05)
@@ -83,9 +90,12 @@ def component(rng: np.random.Generator, defect: str | None):
 
 def measure(rng, n, c, t):
     d = drift(t, n)
+    late = t >= c.get("onset", 1e9)
     return {
-        "leakage_nA": c["leak0"] * np.exp(c["leak_a"] * d) * rng.normal(1, 0.02),
-        "vth_V": c["vth0"] + c["vth_a"] * d + rng.normal(0, 0.004),
+        "leakage_nA": c["leak0"] * np.exp(c["leak_a"] * d) * rng.normal(1, 0.02)
+        * (7.0 if late and c["jump"] == "leak" else 1.0),
+        "vth_V": c["vth0"] + c["vth_a"] * d + rng.normal(0, 0.004)
+        - (0.38 if late and c["jump"] == "vth" else 0.0),
         "rds_on_mOhm": c["rds0"] + c["rds_a"] * d + rng.normal(0, 0.4),
         "gate_leak_nA": c["gl0"] * np.exp(c["gl_a"] * d) * rng.normal(1, 0.03),
     }

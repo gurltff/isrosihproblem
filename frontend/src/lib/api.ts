@@ -52,6 +52,26 @@ export interface BatchMeta {
   top_param: string | null;
   early_rejects: number;
   socket_hours_saved: number;
+  lot_verdict: {
+    pda: number;
+    rejects: number;
+    allowed: number;
+    defective_pct: number;
+    verdict: "ACCEPT" | "ON TRACK" | "AT RISK" | "REJECT LOT";
+  };
+}
+
+export interface Timeline {
+  hours: number[];
+  steps: { hour: number; status: Record<string, Status>; early: string[]; counts: Record<Status, number> }[];
+  first_flag: Record<string, { hour: number; status: Status; early_reject: boolean; reason: string }>;
+}
+
+export interface BurninLength {
+  lots: { batch_id: string; rejects: number; caught_by: Record<string, number> }[];
+  total_rejects: number;
+  curve: { hour: number; caught: number; share: number | null }[];
+  sufficient_hour: number;
 }
 
 export interface Backtest {
@@ -201,6 +221,8 @@ const enc = encodeURIComponent;
 export const api = {
   health: () => req<{ ok: boolean; claude_vision: boolean; model: string }>("/api/health"),
   params: () => req<Param[]>("/api/params"),
+  timeline: (id: string) => req<Timeline>(`/api/batches/${enc(id)}/timeline`),
+  burninLength: () => req<BurninLength>("/api/burnin-length"),
   batches: () => req<{ batches: BatchMeta[]; drift_model: DriftModelInfo }>("/api/batches"),
   batch: (id: string) => req<Batch>(`/api/batches/${enc(id)}`),
   passport: (id: string, cid: string) => req<Passport>(`/api/batches/${enc(id)}/components/${enc(cid)}`),

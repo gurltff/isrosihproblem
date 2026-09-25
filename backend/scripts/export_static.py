@@ -38,10 +38,12 @@ def main(out: Path) -> None:
         (out / "api/template.csv").write_bytes(c.get("/api/template.csv").content)
         save("/api/params", c)
         save("/api/nasa", c)
+        save("/api/burnin-length", c)
         lots = save("/api/batches", c)["batches"]
         for lot in lots:
             b = lot["batch_id"]
             batch = save(f"/api/batches/{b}", c)
+            save(f"/api/batches/{b}/timeline", c)
             as_of = [h for h in lot["hours"] if 0 < h < 168] or [lot["latest_hour"]]
             for h in as_of:
                 save(f"/api/batches/{b}/drift_{h}", c, f"/api/batches/{b}/drift?as_of={h}")

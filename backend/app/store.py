@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from . import detector, drift
+from . import detector, drift, lotstats
 from .params import FINAL_HOUR, PARAM_KEYS, PARAMS, resolve_column
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
@@ -131,6 +131,7 @@ class Store:
             "hours": a["hours"],
             "latest_hour": a["latest_hour"],
             "in_progress": a["latest_hour"] < FINAL_HOUR,
+            "lot_verdict": lotstats.lot_verdict(a["summary"], a["latest_hour"]),
             **a["summary"],
         }
 

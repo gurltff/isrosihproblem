@@ -3,6 +3,30 @@ import { BarChart } from "../components/Charts";
 import { ErrorBox, Loading, LotPicker, PageHead, StatusBadge, Tile, useLot } from "../components/ui";
 import { api, type BatchMeta, type Status } from "../lib/api";
 import { stripId } from "./Detector";
+import Savings from "../components/Savings";
+
+const VERDICT_STYLE = {
+  "REJECT LOT": { color: "var(--brick)", bg: "var(--brick-soft)", label: "Reject the lot" },
+  "AT RISK": { color: "#44697a", bg: "#e3edf1", label: "Lot at risk" },
+  "ON TRACK": { color: "var(--navy)", bg: "var(--sky-soft)", label: "Lot on track" },
+  ACCEPT: { color: "var(--navy)", bg: "var(--sky-soft)", label: "Accept the lot" },
+};
+
+function LotVerdict({ b }: { b: BatchMeta }) {
+  const v = b.lot_verdict;
+  const s = VERDICT_STYLE[v.verdict];
+  return (
+    <div className="verdict-banner" style={{ borderColor: s.color, background: s.bg }}>
+      <b className="v" style={{ color: s.color }}>{s.label}</b>
+      <span>
+        {b.batch_id}: {v.rejects} of {b.n} parts rejected ({v.defective_pct}%) against a PDA of {Math.round(v.pda * 100)}%
+        {" "}({v.allowed} parts allowed), per MIL-PRF-19500 lot acceptance.
+        {v.verdict === "REJECT LOT" && " The whole lot fails screening, not just the flagged parts."}
+        {v.verdict === "ON TRACK" && ` Burn-in is still running (${b.latest_hour} h).`}
+      </span>
+    </div>
+  );
+}
 import { useAsync, useData } from "../lib/data";
 import { dateText, hours } from "../lib/format";
 
@@ -59,6 +83,7 @@ export default function Dashboard() {
       />
 
       <div className="stack stagger">
+        <LotVerdict b={b} />
         <div className="ledger">
           <Tile
             dark
@@ -245,6 +270,8 @@ export default function Dashboard() {
             )}
           </section>
         </div>
+
+        <Savings partsPerLot={b.n} />
 
         <section className="card">
           <div className="card-head">

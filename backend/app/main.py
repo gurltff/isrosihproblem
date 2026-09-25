@@ -16,7 +16,7 @@ from .env import load_env
 
 load_env()
 
-from . import nasa, vision  # noqa: E402 - vision reads the environment at import time
+from . import lotstats, nasa, vision  # noqa: E402 - vision reads the environment at import time
 from .drift import breaches, project_component
 from .params import BY_KEY, FINAL_HOUR, PARAMS
 from .store import CSVError, store
@@ -53,6 +53,25 @@ def health() -> dict:
 def nasa_validation() -> dict:
     """Drift-model validation on NASA's real MOSFET ageing runs."""
     return nasa.analysis()
+
+
+@app.get("/api/batches/{batch_id}/timeline")
+def batch_timeline(batch_id: str) -> dict:
+    _batch_or_404(batch_id)
+    return lotstats.timeline(store.lot(batch_id), store.model)
+
+
+_curve_cache: dict = {}
+
+
+@app.get("/api/burnin-length")
+def burnin_length() -> dict:
+    """How early the failures of completed lots were caught."""
+    key = tuple(store.batch_ids())
+    if key not in _curve_cache:
+        _curve_cache.clear()
+        _curve_cache[key] = lotstats.detection_curve(store)
+    return _curve_cache[key]
 
 
 @app.get("/api/params")

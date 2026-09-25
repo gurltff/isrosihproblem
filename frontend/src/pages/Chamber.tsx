@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ErrorBox, Loading, LotPicker, PageHead, STATUS_COLOR, StatusBadge, useLot } from "../components/ui";
-import { api, type Component } from "../lib/api";
+import { api, type Component, type Status, type Timeline } from "../lib/api";
 import { useAsync, useData } from "../lib/data";
 import { fmt } from "../lib/format";
 
 const SOCKET_RE = /^([A-Za-z])\s*(\d+)$/;
+const REPLAY_SECONDS = 24; // a full 168 h run plays in this many seconds
 
 /** Arrange parts on a board: by their socket label when present, otherwise in order. */
 function layout(comps: Component[]) {
@@ -15,9 +16,11 @@ function layout(comps: Component[]) {
   });
   if (parsed.every(Boolean)) {
     const cells = parsed as { c: Component; r: number; col: number }[];
-    const rows = Math.max(...cells.map((x) => x.r)) + 1;
-    const cols = Math.max(...cells.map((x) => x.col)) + 1;
-    return { rows, cols, cells };
+    return {
+      rows: Math.max(...cells.map((x) => x.r)) + 1,
+      cols: Math.max(...cells.map((x) => x.col)) + 1,
+      cells,
+    };
   }
   const cols = Math.ceil(Math.sqrt(comps.length));
   return {
@@ -27,49 +30,136 @@ function layout(comps: Component[]) {
   };
 }
 
+type SocketState = Status | "WAIT" | "PULLED";
+
+/** What the chamber looked like at hour t, from the read points taken so far. */
+function stateAt(tl: Timeline | null, t: number, end: number) {
+  const status = new Map<string, SocketState>();
+  const events: { hour: number; cid: string; status: Status; early: boolean; reason: string }[] = [];
+  let freed = 0;
+  if (!tl) return { status, events, freed };
+  const step = [...tl.steps].reverse().find((s) => s.hour <= t);
+  for (const [cid, f] of Object.entries(tl.first_flag)) {
+    if (f.hour <= t) events.push({ hour: f.hour, cid, status: f.status, early: f.early_reject, reason: f.reason });
+  }
+  events.sort((a, b) => b.hour - a.hour || a.cid.localeCompare(b.cid));
+  if (step) {
+    for (const [cid, s] of Object.entries(step.status)) status.set(cid, s);
+  }
+  // A part rejected before the end of the run is pulled from its socket.
+  for (const e of events) {
+    if (e.status === "REJECT" && e.hour < end) {
+      if (t > e.hour) status.set(e.cid, "PULLED");
+      freed += Math.max(Math.min(t, 168) - e.hour, 0);
+    }
+  }
+  return { status, events, freed };
+}
+
 export default function Chamber() {
   const [lot, setLot] = useLot();
   const nav = useNavigate();
   const { param } = useData();
   const [sel, setSel] = useState<Component | null>(null);
   const { data, error, loading } = useAsync(() => (lot ? api.batch(lot) : Promise.resolve(null)), [lot]);
+  const tl = useAsync(() => (lot ? api.timeline(lot) : Promise.resolve(null)), [lot]);
   const board = useMemo(() => (data ? layout(data.components) : null), [data]);
 
-  const progress = data ? Math.min(data.latest_hour / 168, 1) : 0;
+  const end = data?.latest_hour ?? 0;
+  const [t, setT] = useState<number | null>(null); // null = show the latest state
+  const [playing, setPlaying] = useState(false);
+  const raf = useRef(0);
+
+  useEffect(() => {
+    setT(null);
+    setPlaying(false);
+    setSel(null);
+  }, [lot]);
+
+  useEffect(() => {
+    if (!playing) return;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = (now - last) / 1000;
+      last = now;
+      setT((prev) => {
+        const next = (prev ?? 0) + (dt * 168) / REPLAY_SECONDS;
+        if (next >= end) {
+          setPlaying(false);
+          return end;
+        }
+        return next;
+      });
+      raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf.current);
+  }, [playing, end]);
+
+  const now = t ?? end;
+  const replay = useMemo(() => stateAt(tl.data, now, end), [tl.data, now, end]);
+  const counts = { PASS: 0, REVIEW: 0, REJECT: 0, PULLED: 0, WAIT: 0 };
+  data?.components.forEach((c) => counts[replay.status.get(c.component_id) ?? (now < 24 ? "WAIT" : c.status)]++);
 
   return (
     <>
       <PageHead
-        title="Chamber view"
-        lede="Board 1 as it sits in the oven, laid out socket by socket. Pick a socket to see the part in it."
+        title="Chamber"
+        lede="The burn-in board socket by socket. Press play to watch the run: read points arrive, parts are flagged, and rejects are pulled early to free their sockets."
         actions={<LotPicker value={lot} onChange={setLot} />}
       />
       {error && <ErrorBox error={error} />}
       {loading && !data && <Loading height={520} />}
       {data && board && (
         <div className="grid grid-main">
-          <section
-            className="card"
-            style={{ background: "var(--navy)", color: "var(--sky)", padding: "clamp(16px, 3vw, 28px)" }}
-          >
-            <div className="spread" style={{ marginBottom: 18 }}>
+          <section className="card chamber">
+            <div className="spread" style={{ marginBottom: 14 }}>
               <div>
                 <div className="small mono" style={{ color: "rgba(200,217,230,.7)" }}>
                   BOARD 1 / {data.batch_id}
                 </div>
-                <div style={{ fontFamily: "var(--serif)", fontSize: 26, color: "var(--white)", fontWeight: 700 }}>
-                  {data.in_progress ? `${data.latest_hour} h of 168 h` : "Burn-in complete"}
+                <div className="chamber-clock">
+                  <span className="mono">{String(Math.floor(now)).padStart(3, "0")}</span> h
+                  <small> of 168 h</small>
                 </div>
               </div>
-              <span className="small mono" style={{ color: "rgba(200,217,230,.8)" }}>
-                {data.in_progress ? `last read at ${data.latest_hour} h` : "run complete"}
-              </span>
+              <div className="row" style={{ gap: 8 }}>
+                <button
+                  className="btn light"
+                  onClick={() => {
+                    if (playing) setPlaying(false);
+                    else {
+                      if (t === null || t >= end) setT(0);
+                      setPlaying(true);
+                    }
+                  }}
+                  disabled={!tl.data}
+                >
+                  {playing ? "Pause" : t !== null && t < end ? "Resume" : "▶ Replay run"}
+                </button>
+              </div>
             </div>
-            <div
-              style={{ height: 3, background: "rgba(200,217,230,.15)", marginBottom: 22, overflow: "hidden" }}
-              aria-label={`Burn-in progress ${Math.round(progress * 100)}%`}
-            >
-              <div style={{ width: `${progress * 100}%`, height: "100%", background: "var(--sky)" }} />
+
+            <input
+              className="scrubber"
+              type="range"
+              min={0}
+              max={168}
+              step={1}
+              value={now}
+              onChange={(e) => {
+                setPlaying(false);
+                setT(Math.min(Number(e.target.value), end));
+              }}
+              aria-label="Hours into burn-in"
+              style={{ ["--fill" as string]: `${(now / 168) * 100}%`, ["--end" as string]: `${(end / 168) * 100}%` }}
+            />
+            <div className="scrub-ticks mono">
+              {[0, 24, 96, 168].map((h) => (
+                <span key={h} style={{ left: `${(h / 168) * 100}%` }}>
+                  {h}
+                </span>
+              ))}
             </div>
 
             <div
@@ -78,31 +168,40 @@ export default function Chamber() {
                 gridTemplateColumns: `20px repeat(${board.cols}, minmax(0, 1fr))`,
                 gap: "clamp(4px, 1vw, 10px)",
                 alignItems: "center",
+                marginTop: 26,
               }}
             >
               <span />
               {Array.from({ length: board.cols }, (_, i) => (
-                <span key={i} style={{ textAlign: "center", fontSize: 11, color: "rgba(200,217,230,.6)" }}>
+                <span key={i} className="socket-label">
                   {i + 1}
                 </span>
               ))}
               {Array.from({ length: board.rows }, (_, r) => (
-                <Row key={r} r={r} board={board} sel={sel} setSel={setSel} />
+                <Row
+                  key={r}
+                  r={r}
+                  board={board}
+                  sel={sel}
+                  setSel={setSel}
+                  stateOf={(c) => replay.status.get(c.component_id) ?? (now < 24 ? "WAIT" : c.status)}
+                />
               ))}
             </div>
 
             <div className="legend" style={{ marginTop: 20, color: "rgba(200,217,230,.85)" }}>
-              <span><i className="swatch" style={{ background: "var(--sky)", borderRadius: 6 }} /> Pass</span>
-              <span><i className="swatch" style={{ background: "var(--teal)", borderRadius: 6 }} /> Review</span>
-              <span><i className="swatch" style={{ background: "var(--brick)", borderRadius: 6 }} /> Reject</span>
+              <span><i className="swatch" style={{ background: "var(--sky)", borderRadius: 6 }} /> Pass {counts.PASS}</span>
+              <span><i className="swatch" style={{ background: "var(--teal)", borderRadius: 6 }} /> Review {counts.REVIEW}</span>
+              <span><i className="swatch" style={{ background: "var(--brick)", borderRadius: 6 }} /> Reject {counts.REJECT}</span>
+              <span><i className="swatch" style={{ border: "1.5px dashed var(--sky)", borderRadius: 6 }} /> Pulled {counts.PULLED}</span>
               <span style={{ marginLeft: "auto" }}>Numbers are part IDs</span>
             </div>
           </section>
 
-          <section className="card">
+          <section className="card" style={{ alignSelf: "start" }}>
             {sel ? (
-              <div className="stack" style={{ gap: 16 }}>
-                <div className="spread fade" key={sel.component_id}>
+              <div className="stack fade" style={{ gap: 14 }} key={sel.component_id}>
+                <div className="spread">
                   <div>
                     <div className="small muted">Socket {sel.socket}</div>
                     <h2 className="mono" style={{ marginTop: 4, fontFamily: "var(--mono)", fontWeight: 500 }}>{sel.component_id}</h2>
@@ -116,21 +215,47 @@ export default function Chamber() {
                   ))}
                   <FragmentKV label="Risk score" value={`${sel.risk} / 100`} />
                 </dl>
-                <button className="btn primary" onClick={() => nav(`/passport/${lot}/${sel.component_id}`)}>
-                  Open passport
-                </button>
+                <div className="row">
+                  <button className="btn primary" onClick={() => nav(`/passport/${lot}/${sel.component_id}`)}>
+                    Open passport
+                  </button>
+                  <button className="btn ghost" onClick={() => setSel(null)}>
+                    Back to run log
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="stack" style={{ gap: 14 }}>
-                <h2>Board summary</h2>
-                <dl className="kv">
-                  <FragmentKV label="Seated parts" value={String(data.n)} />
-                  <FragmentKV label="Pass" value={String(data.counts.PASS)} />
-                  <FragmentKV label="Review" value={String(data.counts.REVIEW)} />
-                  <FragmentKV label="Reject" value={String(data.counts.REJECT)} />
-                  {data.in_progress && <FragmentKV label="Pull now (early reject)" value={String(data.early_rejects)} />}
-                </dl>
-                <p className="small muted">Select a socket to see the part seated there.</p>
+                <div className="ledger" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  <div className="tile dark">
+                    <div className="eyebrow">Socket-hours freed</div>
+                    <div className="tile-value" style={{ fontSize: 30 }}>{Math.round(replay.freed).toLocaleString()}</div>
+                  </div>
+                  <div className="tile">
+                    <div className="eyebrow">Parts pulled early</div>
+                    <div className="tile-value" style={{ fontSize: 30 }}>{counts.PULLED}</div>
+                  </div>
+                </div>
+                <h2>Run log</h2>
+                {replay.events.length === 0 ? (
+                  <p className="small muted">
+                    {now < 24 ? "Waiting for the 24 h read point…" : "No part flagged so far."}
+                  </p>
+                ) : (
+                  <ol className="events">
+                    {replay.events.map((e) => (
+                      <li key={e.cid} className="fade">
+                        <span className="mono small faint">{e.hour} h</span>
+                        <span className="small">
+                          <b className="mono" style={{ color: STATUS_COLOR[e.status] }}>{e.cid}</b>{" "}
+                          {e.status === "REJECT" ? (e.hour < end ? "rejected and pulled" : "rejected") : "put on hold"}
+                          {e.early ? " (drift projection)" : ""}
+                          <span className="muted" style={{ display: "block" }}>{e.reason}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
               </div>
             )}
           </section>
@@ -154,40 +279,29 @@ function Row({
   board,
   sel,
   setSel,
+  stateOf,
 }: {
   r: number;
   board: ReturnType<typeof layout>;
   sel: Component | null;
   setSel: (c: Component) => void;
+  stateOf: (c: Component) => SocketState;
 }) {
   return (
     <>
-      <span style={{ fontSize: 11, color: "rgba(200,217,230,.6)", textAlign: "center" }}>{String.fromCharCode(65 + r)}</span>
+      <span className="socket-label">{String.fromCharCode(65 + r)}</span>
       {Array.from({ length: board.cols }, (_, col) => {
         const cell = board.cells.find((x) => x.r === r && x.col === col);
-        if (!cell) return <span key={col} style={{ aspectRatio: "1", borderRadius: "50%", border: "1px dashed rgba(200,217,230,.2)" }} />;
+        if (!cell) return <span key={col} className="socket empty" />;
         const c = cell.c;
-        const active = sel?.component_id === c.component_id;
-        const fill = c.status === "PASS" ? "var(--sky)" : STATUS_COLOR[c.status];
+        const s = stateOf(c);
         return (
           <button
             key={col}
             onClick={() => setSel(c)}
-            aria-label={`Socket ${c.socket}: ${c.component_id}, ${c.status}`}
-            title={`${c.socket} · ${c.component_id} · ${c.status}`}
-            style={{
-              aspectRatio: "1",
-              borderRadius: "50%",
-              border: active ? "3px solid var(--white)" : "3px solid rgba(255,255,255,.08)",
-              background: fill,
-              cursor: "pointer",
-              padding: 0,
-              boxShadow: c.status === "REJECT" ? "0 0 0 4px rgba(165,67,47,.28)" : undefined,
-              color: c.status === "PASS" ? "var(--navy)" : "var(--white)",
-              fontSize: "clamp(8px, 1.2vw, 11px)",
-              fontFamily: "var(--mono)",
-              transition: "transform .15s, border-color .15s",
-            }}
+            aria-label={`Socket ${c.socket}: ${c.component_id}, ${s}`}
+            title={`${c.socket} · ${c.component_id} · ${s}`}
+            className={`socket s-${s}${sel?.component_id === c.component_id ? " on" : ""}`}
           >
             <span className="hide-sm">{c.component_id.replace(/^C-0*/, "")}</span>
           </button>

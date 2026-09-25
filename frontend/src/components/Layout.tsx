@@ -21,7 +21,7 @@ const NAV = [
   { to: "/detector", label: "Anomaly detector", icon: IconDetector },
   { to: "/drift", label: "Drift predictor", icon: IconDrift },
   { to: "/heatmap", label: "Risk heatmap", icon: IconHeatmap },
-  { to: "/chamber", label: "Chamber view", icon: IconChamber },
+  { to: "/chamber", label: "Chamber replay", icon: IconChamber },
   { to: "/nasa", label: "NASA ageing data", icon: IconData },
   { group: "Inspection" },
   { to: "/inspect", label: "Inspection station", icon: IconCamera },
