@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   IconCamera,
   IconChamber,
+  IconData,
   IconDashboard,
   IconDetector,
   IconDrift,
@@ -20,6 +21,7 @@ const NAV = [
   { to: "/drift", label: "Drift predictor", icon: IconDrift },
   { to: "/heatmap", label: "Risk heatmap", icon: IconHeatmap },
   { to: "/chamber", label: "Chamber view", icon: IconChamber },
+  { to: "/nasa", label: "NASA ageing data", icon: IconData },
   { group: "Inspection" },
   { to: "/inspect", label: "Surface inspection", icon: IconCamera },
   { group: "Data" },
@@ -37,10 +39,10 @@ const TABS = [
 function Brand() {
   return (
     <Link to="/" className="brand" aria-label="Sentinel home">
-      <img src="/icon.svg" width={34} height={34} alt="" style={{ borderRadius: 9 }} />
+      <img src="/icon.svg" width={30} height={30} alt="" style={{ borderRadius: 3 }} />
       <span>
         <div className="brand-name">Sentinel</div>
-        <div className="brand-sub">Burn-in intelligence</div>
+        <div className="brand-sub">burn-in screening</div>
       </span>
     </Link>
   );
@@ -70,9 +72,9 @@ export default function Layout({ children }: { children: ReactNode }) {
           )}
         </nav>
         <div className="sidebar-foot">
-          Lot-relative screening for
+          Demo lots are synthetic.
           <br />
-          high-reliability components.
+          NASA ageing data is real.
         </div>
       </aside>
 

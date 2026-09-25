@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Detector from "./pages/Detector";
 import Drift from "./pages/Drift";
 import Heatmap from "./pages/Heatmap";
+import Nasa from "./pages/Nasa";
 import Passport from "./pages/Passport";
 import Report from "./pages/Report";
 import Upload from "./pages/Upload";
@@ -21,22 +22,26 @@ function ScrollTop() {
 }
 
 export default function App() {
+  const { pathname } = useLocation();
   return (
     <Layout>
       <ScrollTop />
       <Suspense fallback={<Loading height={480} />}>
+        <div className="page" key={pathname}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/detector" element={<Detector />} />
           <Route path="/drift" element={<Drift />} />
           <Route path="/heatmap" element={<Heatmap />} />
           <Route path="/chamber" element={<Chamber />} />
+          <Route path="/nasa" element={<Nasa />} />
           <Route path="/passport/:lot/:cid" element={<Passport />} />
           <Route path="/inspect" element={<Inspect />} />
           <Route path="/upload" element={<Upload />} />
           <Route path="/report" element={<Report />} />
           <Route path="*" element={<div className="empty">Page not found.</div>} />
         </Routes>
+        </div>
       </Suspense>
     </Layout>
   );

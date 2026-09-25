@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { HandLandmarker, NormalizedLandmark } from "@mediapipe/tasks-vision";
-import { IconCamera, IconHand, IconSwitch, IconUpload } from "../components/Icons";
+import { IconCamera, IconFist, IconHand, IconPoint, IconSwitch, IconUpload, IconVictory } from "../components/Icons";
+
+const GESTURE_ICON = { fist: IconFist, palm: IconHand, point: IconPoint, victory: IconVictory };
 import { PageHead } from "../components/ui";
 import { api, type Finding, type Inspection } from "../lib/api";
 import { useData } from "../lib/data";
@@ -479,19 +481,19 @@ export default function Inspect() {
         }
         if (t.fire === "fist" && !st.frozen) {
           freezeAndScan();
-          note("✊ Frame frozen · scanning");
+          note(GESTURES.fist.toast);
         } else if (t.fire === "palm") {
           if (st.frozen) {
             resume();
-            note("✋ Live view resumed");
+            note(GESTURES.palm.toast);
           } else if (st.result) {
             setResult(null);
-            note("✋ Results cleared");
+            note("Results cleared");
           }
         } else if (t.fire === "victory") {
           const next = FILTERS[(FILTERS.indexOf(st.filter) + 1) % FILTERS.length];
           setFilter(next);
-          note(`✌️ ${FILTER_LABEL[next]}`);
+          note(FILTER_LABEL[next]);
         }
       }
       lm = st.hand;
@@ -563,12 +565,11 @@ export default function Inspect() {
   return (
     <>
       <PageHead
-        eyebrow="Inspection"
         title="Surface inspection"
-        lede="Point the camera at a board or part. It scans on its own when the view settles, or you can drive it with your hand: close your fist to freeze and scan, open your palm to go live again."
+        lede="Hold a board or part up to the camera. When the picture stays still it scans by itself. You can also use your hand: make a fist to freeze and scan, open your palm to go back to live."
         actions={
           <span className={`pill${claudeVision ? " live" : ""}`}>
-            {claudeVision ? "Claude vision online" : "Offline screen only"}
+            {claudeVision ? "Claude vision connected" : "Offline check only (no API key on server)"}
           </span>
         }
       />
@@ -601,7 +602,7 @@ export default function Inspect() {
                 <IconCamera size={40} />
                 <div style={{ fontFamily: "var(--serif)", fontSize: 24, color: "var(--white)" }}>Camera is off</div>
                 <p className="small" style={{ maxWidth: 360, color: "rgba(200,217,230,.8)" }}>
-                  Frames are only sent for analysis when a scan runs. Hand tracking runs entirely on this device.
+                  Hand tracking runs on this device. A picture only leaves it when a scan runs.
                 </p>
                 <div className="row" style={{ justifyContent: "center" }}>
                   <button className="btn primary" style={{ background: "var(--beige)", color: "var(--navy)" }} onClick={startCamera}>
@@ -631,7 +632,7 @@ export default function Inspect() {
                         : handState === "error"
                           ? "Hand tracking unavailable"
                           : gesture !== "none"
-                            ? `${GESTURES[gesture].glyph} ${GESTURES[gesture].name}`
+                            ? GESTURES[gesture].name
                             : "Show a hand"}
                     </span>
                   </div>
@@ -645,8 +646,8 @@ export default function Inspect() {
                       transform: "translateX(-50%)",
                       background: "rgba(47,65,86,.92)",
                       color: "var(--white)",
-                      padding: "8px 16px",
-                      borderRadius: 999,
+                      padding: "8px 14px",
+                      borderRadius: 2,
                       fontWeight: 600,
                       fontSize: 14,
                       whiteSpace: "nowrap",
@@ -722,8 +723,8 @@ export default function Inspect() {
             {!ins && !scanError && (
               <p className="muted small">
                 {scanning
-                  ? "Looking for burn marks, corrosion, solder defects and cracks…"
-                  : "No scan yet. Hold the camera steady on a board, make a fist, or upload a photo."}
+                  ? "Checking for burn marks, corrosion, solder faults and cracks…"
+                  : "Nothing scanned yet. Hold the camera still on a board, make a fist, or upload a photo."}
               </p>
             )}
             {ins && (
@@ -740,9 +741,9 @@ export default function Inspect() {
                       <li key={i} style={{ display: "grid", gridTemplateColumns: "26px 1fr", gap: 10 }}>
                         <span
                           style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: 6,
+                            width: 22,
+                            height: 22,
+                            borderRadius: 2,
                             background: SEV_COLOR[f.severity],
                             color: "#fff",
                             fontWeight: 700,
@@ -754,9 +755,9 @@ export default function Inspect() {
                           {i + 1}
                         </span>
                         <span className="small">
-                          <b style={{ textTransform: "capitalize" }}>{f.type.replace(/_/g, " ")}</b>{" "}
+                          <b>{f.type[0].toUpperCase() + f.type.slice(1).replace(/_/g, " ")}</b>{" "}
                           <span className="faint">
-                            · {f.severity} · {Math.round(f.confidence * 100)}% conf.
+                            ({f.severity}, {Math.round(f.confidence * 100)}% sure)
                           </span>
                           <div>{f.description}</div>
                           <div className="faint">{f.location}</div>
@@ -792,17 +793,18 @@ export default function Inspect() {
                     alignItems: "center",
                     gap: 12,
                     padding: "8px 10px",
-                    borderRadius: 10,
+                    borderRadius: 2,
                     background: gesture === k ? "var(--sky-soft)" : "transparent",
                     transition: "background .15s",
                   }}
                 >
-                  <span style={{ fontSize: 26, textAlign: "center" }} aria-hidden>
-                    {GESTURES[k].glyph}
-                  </span>
+                  {(() => {
+                    const Icon = GESTURE_ICON[k];
+                    return <Icon size={28} style={{ justifySelf: "center", color: gesture === k ? "var(--navy)" : "var(--ink-2)" }} />;
+                  })()}
                   <span className="small">
                     <b>{GESTURES[k].name}</b>
-                    {k !== "point" && <span className="faint"> · hold ½ s</span>}
+                    {k !== "point" && <span className="faint">, hold for half a second</span>}
                     <div className="muted">{GESTURES[k].action}</div>
                   </span>
                 </li>
@@ -811,11 +813,11 @@ export default function Inspect() {
             <div className="stack" style={{ gap: 10, marginTop: 16 }}>
               <label className="small check">
                 <input type="checkbox" checked={autoScan} onChange={(e) => setAutoScan(e.target.checked)} />
-                Auto-scan when the view settles on something new
+                Scan automatically when the picture settles
               </label>
               <label className="small check">
                 <input type="checkbox" checked={loupe} onChange={(e) => setLoupe(e.target.checked)} />
-                Touch loupe (tap or drag on the image)
+                Magnifier on touch (tap or drag on the picture)
               </label>
             </div>
           </section>

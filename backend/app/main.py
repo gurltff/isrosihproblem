@@ -12,12 +12,17 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import vision
+from .env import load_env
+
+load_env()
+
+from . import nasa, vision  # noqa: E402 - vision reads the environment at import time
 from .drift import breaches, project_component
 from .params import BY_KEY, FINAL_HOUR, PARAMS
 from .store import CSVError, store
 
 logging.basicConfig(level=logging.INFO)
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -42,6 +47,12 @@ def _batch_or_404(batch_id: str) -> dict:
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True, "claude_vision": vision.claude_available(), "model": vision.MODEL}
+
+
+@app.get("/api/nasa")
+def nasa_validation() -> dict:
+    """Drift-model validation on NASA's real MOSFET ageing runs."""
+    return nasa.analysis()
 
 
 @app.get("/api/params")

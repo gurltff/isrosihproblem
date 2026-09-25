@@ -2,11 +2,11 @@ import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 
 export type Gesture = "none" | "fist" | "palm" | "point" | "victory";
 
-export const GESTURES: Record<Exclude<Gesture, "none">, { glyph: string; name: string; action: string }> = {
-  fist: { glyph: "✊", name: "Closed fist", action: "Freeze the frame and scan it" },
-  palm: { glyph: "✋", name: "Open palm", action: "Resume live view and clear results" },
-  point: { glyph: "☝️", name: "Point", action: "Inspection loupe follows your fingertip" },
-  victory: { glyph: "✌️", name: "Two fingers", action: "Cycle view: normal → edges → contrast → false colour" },
+export const GESTURES: Record<Exclude<Gesture, "none">, { name: string; action: string; toast: string }> = {
+  fist: { name: "Closed fist", action: "Freezes the frame and scans it.", toast: "Frozen. Scanning…" },
+  palm: { name: "Open palm", action: "Back to the live picture; clears old results.", toast: "Live again" },
+  point: { name: "Point", action: "A magnifier follows your fingertip.", toast: "" },
+  victory: { name: "Two fingers", action: "Switches the view: edges, contrast, false colour.", toast: "" },
 };
 
 const d = (a: NormalizedLandmark, b: NormalizedLandmark) => Math.hypot(a.x - b.x, a.y - b.y);

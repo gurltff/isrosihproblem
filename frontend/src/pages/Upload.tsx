@@ -34,9 +34,8 @@ export default function Upload() {
   return (
     <>
       <PageHead
-        eyebrow="Data"
         title="Upload lot data"
-        lede="Drop in a CSV from the burn-in test station. Lots with only 0 h and 24 h readings get early-reject projections straight away."
+        lede="Add a CSV exported from the burn-in test station. A lot with only 0 h and 24 h readings gets its early-reject projections straight away."
         actions={
           <a className="btn" href="/api/template.csv" download>
             Download template
@@ -67,14 +66,14 @@ export default function Upload() {
               minHeight: 260,
               border: `2px dashed ${drag ? "var(--teal)" : "var(--rule-strong)"}`,
               background: drag ? "var(--sky-soft)" : "var(--white)",
-              boxShadow: "none",
+              transition: "background .15s, border-color .15s",
               cursor: "pointer",
               textAlign: "center",
             }}
           >
             <IconUpload size={36} />
-            <h2>{busy ? "Analysing…" : "Drop a CSV here"}</h2>
-            <p className="muted small">or tap to choose a file · up to 15 MB</p>
+            <h2>{busy ? "Reading the file…" : "Drop a CSV here"}</h2>
+            <p className="muted small">or click to choose one (15 MB max)</p>
             <input ref={input} type="file" accept=".csv,text/csv" hidden onChange={(e) => send(e.target.files?.[0])} />
           </label>
 
@@ -110,7 +109,7 @@ export default function Upload() {
 
         <section className="card">
           <div className="card-head">
-            <h2>Format</h2>
+            <h2>Columns</h2>
           </div>
           <p className="small muted" style={{ marginBottom: 14 }}>
             One row per part per read point. Column names are matched loosely (e.g. <code>idss</code>, <code>vth</code>,{" "}

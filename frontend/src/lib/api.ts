@@ -204,3 +204,45 @@ export const api = {
     return req<Inspection>("/api/vision/inspect", { method: "POST", body: fd });
   },
 };
+
+export interface NasaDevice {
+  test: number;
+  runs: number;
+  stress_min: number;
+  base_rds_ohm: number;
+  plateau_temp_C: number;
+  dr_early_pct: number | null;
+  dr_final_pct: number;
+  predicted_final_pct: number | null;
+  predictions: Record<string, number>;
+  kind: "gradual" | "abrupt";
+  max_step_pp: number;
+  exponent: number;
+  z_early: number | null;
+  flag: boolean;
+  curve: { t: number; dr: number }[];
+  fit: { t: number; dr: number }[];
+}
+
+type ErrTable = Record<string, { median_abs_error_pp: number | null; n: number }>;
+
+export interface NasaValidation {
+  available: boolean;
+  source?: string;
+  devices: NasaDevice[];
+  summary: {
+    devices: number;
+    runs: number;
+    stress_hours: number;
+    early_min: number;
+    gradual: number;
+    abrupt: number;
+    error_all: ErrTable;
+    error_gradual: ErrTable;
+    error_abrupt: ErrTable;
+    spearman_early_vs_final: number | null;
+    flagged_early: number;
+  };
+}
+
+export const nasaApi = () => req<NasaValidation>("/api/nasa");

@@ -23,9 +23,9 @@ export function RiskMeter({ value, status }: { value: number; status: Status }) 
   return (
     <div className="risk-meter" title={`Risk score ${value} / 100`}>
       <div className="bar-track">
-        <span style={{ width: `${value}%`, background: STATUS_COLOR[status], borderRadius: 999 }} />
+        <span style={{ width: `${value}%`, background: STATUS_COLOR[status] }} />
       </div>
-      <span className="num small" style={{ width: 24, textAlign: "right", fontWeight: 700 }}>
+      <span className="num mono small" style={{ width: 26, textAlign: "right" }}>
         {value}
       </span>
     </div>
@@ -99,12 +99,12 @@ export function LotPicker({ value, onChange }: { value?: string; onChange: (id: 
   const { batches } = useData();
   return (
     <label className="row" style={{ gap: 8 }}>
-      <span className="eyebrow hide-sm">Lot</span>
+      <span className="small muted hide-sm">Lot</span>
       <select className="select" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Select lot">
         {[...batches].reverse().map((b) => (
           <option key={b.batch_id} value={b.batch_id}>
-            {b.batch_id} · {dateText(b.date)}
-            {b.in_progress ? ` · live ${b.latest_hour} h` : ""}
+            {b.batch_id} — {dateText(b.date)}
+            {b.in_progress ? ` (in chamber, ${b.latest_hour} h)` : ""}
           </option>
         ))}
       </select>

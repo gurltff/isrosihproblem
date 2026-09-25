@@ -88,13 +88,11 @@ export default function Drift() {
   return (
     <>
       <PageHead
-        eyebrow="Module B"
         title="Drift predictor"
         lede={
           <>
-            Projects each part's 168 h reading from its early read points using a sub-linear drift law learned from completed
-            lots. If the projected shift already breaks the delta criterion, the part is pulled now, which frees its socket for
-            the remaining {168 - asOf} h.
+            Each part's 168 h reading is projected from its early read points. If the projected shift already breaks the
+            delta limit, the part can come out now and free its socket for the remaining {168 - asOf} h.
           </>
         }
         actions={
@@ -115,8 +113,8 @@ export default function Drift() {
       {view.error && <ErrorBox error={view.error} />}
       {view.loading && !view.data && <Loading height={480} />}
       {view.data && (
-        <div className="stack">
-          <div className="grid grid-4">
+        <div className="stack stagger">
+          <div className="ledger">
             <Tile dark label="Early rejects" value={view.data.early_rejects} note={`Decided at ${asOf} h`} />
             <Tile label="Socket time freed" value={view.data.socket_hours_saved.toLocaleString()} unit="h" note={`${168 - asOf} h per pulled part`} />
             <Tile
@@ -136,7 +134,7 @@ export default function Drift() {
           <div className="grid grid-main">
             <section className="card">
               <div className="card-head">
-                <h2>{sel ?? "—"}</h2>
+                <h2 className="mono" style={{ fontFamily: "var(--mono)", fontWeight: 500 }}>{sel ?? "—"}</h2>
                 <div className="seg">
                   {params.map((x) => (
                     <button key={x.key} className={x.key === p?.key ? "on" : ""} onClick={() => setPk(x.key)}>
@@ -188,8 +186,8 @@ export default function Drift() {
 
             <section className="card">
               <div className="card-head">
-                <h2>Steepest drifters</h2>
-                <span className="small faint">share of allowed drift</span>
+                <h2>Fastest drifting parts</h2>
+                <span className="small faint">% of allowed shift used by 168 h</span>
               </div>
               <div className="stack" style={{ gap: 4 }}>
                 {shown.map((r) => (
@@ -281,18 +279,19 @@ function DriftItem({
         gap: 12,
         padding: "8px 10px",
         border: 0,
-        borderRadius: 10,
+        borderRadius: 2,
         background: active ? "var(--beige)" : "transparent",
+        transition: "background .15s",
         cursor: "pointer",
         textAlign: "left",
       }}
     >
       <span>
-        <b style={{ color: "var(--navy)", fontSize: 14 }}>{r.component_id}</b>
+        <b className="mono" style={{ color: "var(--navy)", fontSize: 13, fontWeight: 500 }}>{r.component_id}</b>
         <div className="small faint">{label}</div>
       </span>
-      <span style={{ position: "relative", height: 8, background: "var(--beige-deep)", borderRadius: 4 }}>
-        <span style={{ position: "absolute", inset: 0, width: `${(ratio / 2) * 100}%`, background: color, borderRadius: 4 }} />
+      <span style={{ position: "relative", height: 6, background: "var(--beige-deep)" }}>
+        <span style={{ position: "absolute", inset: 0, width: `${(ratio / 2) * 100}%`, background: color, transition: "width .4s" }} />
         <span style={{ position: "absolute", left: "50%", top: -3, bottom: -3, width: 2, background: "var(--ink)" }} title="100% of allowance" />
       </span>
       <span className="num small" style={{ textAlign: "right", fontWeight: 700, color }}>

@@ -38,12 +38,11 @@ export default function Detector() {
   return (
     <>
       <PageHead
-        eyebrow="Module A"
         title="Anomaly detector"
         lede={
           <>
-            Robust z-scores against the lot median, plus an Isolation Forest over all parameters together. Parts can be flagged
-            while still <em>inside</em> datasheet limits.
+            Each reading is scored against the lot median (robust z-score), and an Isolation Forest looks at all four
+            parameters together. A part can be flagged here while it is still inside its datasheet limits.
           </>
         }
         actions={<LotPicker value={lot} onChange={setLot} />}
@@ -52,18 +51,18 @@ export default function Detector() {
       {error && <ErrorBox error={error} />}
       {loading && !data && <Loading height={420} />}
       {data && (
-        <section className="card">
+        <section className={`card fade${loading ? " loading-dim" : ""}`} key={lot}>
           <div className="spread" style={{ marginBottom: 18 }}>
             <div className="seg" role="tablist" aria-label="Filter by status">
               {(["ALL", "REJECT", "REVIEW", "PASS"] as Filter[]).map((f) => (
                 <button key={f} className={filter === f ? "on" : ""} onClick={() => setFilter(f)} role="tab">
-                  {f === "ALL" ? `All ${data.n}` : `${f[0]}${f.slice(1).toLowerCase()} ${data.counts[f]}`}
+                  {f === "ALL" ? `All (${data.n})` : `${f[0]}${f.slice(1).toLowerCase()} (${data.counts[f]})`}
                 </button>
               ))}
             </div>
             <input
               className="input"
-              placeholder="Search part, serial, socket, finding…"
+              placeholder="Find a part, serial or socket"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               style={{ flex: "1 1 220px", maxWidth: 340 }}
@@ -86,10 +85,10 @@ export default function Detector() {
                 {rows.map((c) => (
                   <tr key={c.component_id} className="clickable" onClick={() => go(c.component_id)}>
                     <td>
-                      <div className="strong">{c.component_id}</div>
-                      <div className="small faint">{c.serial}</div>
+                      <div className="strong mono">{c.component_id}</div>
+                      <div className="small faint mono">{c.serial}</div>
                     </td>
-                    <td className="num">{c.socket}</td>
+                    <td className="mono">{c.socket}</td>
                     <td>
                       <StatusBadge status={c.status} />
                       {c.early_reject && (
@@ -119,7 +118,7 @@ export default function Detector() {
               >
                 <div className="spread">
                   <span>
-                    <b style={{ color: "var(--navy)" }}>{c.component_id}</b>{" "}
+                    <b className="mono" style={{ color: "var(--navy)", fontWeight: 500 }}>{c.component_id}</b>{" "}
                     <span className="small faint">· {c.socket}</span>
                   </span>
                   <StatusBadge status={c.status} />

@@ -15,6 +15,7 @@ Runs in any browser, on desktop and on phones. It installs as an app (PWA) from 
 | **Risk heatmap** | The whole lot as a colour grid (navy = in family, teal = review, brick = reject) or as a parameter × part matrix |
 | **Chamber view** | The burn-in board socket map, colour-coded by status |
 | **Surface inspection** | Live camera or photo upload. Finds burn marks, corrosion, solder defects and cracks. **Hand-gesture control** (below) |
+| **NASA ageing data** | Checks the drift predictor against 26 real MOSFETs from NASA's thermal-overstress ageing runs |
 | **QA report** | A printable report document. Use *Save as PDF* |
 
 ### Hand gestures (camera page)
@@ -62,8 +63,9 @@ Then use *Add to Home Screen* to install it as an app.
 
 ### Claude vision (optional)
 
-Set `ANTHROPIC_API_KEY` on the **server** to turn on Claude vision for defect recognition. The key stays on the server
-and never reaches the browser. Without it, the camera page falls back to an offline colour/texture screen. That screen
+Copy `backend/.env.example` to `backend/.env` and put your key after `ANTHROPIC_API_KEY=`, or set the environment
+variable on your host. `backend/.env` is git-ignored: never commit a key. The key stays on the server and never
+reaches the browser. Without it, the camera page falls back to an offline colour/texture screen. That screen
 only points at regions that look different from the rest of the board; it cannot name defects reliably. The UI always
 shows which engine produced a result. The model can be overridden with `SENTINEL_VISION_MODEL`.
 
@@ -76,6 +78,24 @@ Replace it with real station data through **Upload lot data**; a template CSV is
 loosely (`idss`, `vth`, `rdson` …).
 
 Screening limits and delta criteria are in `backend/app/params.py`.
+
+### Real data: NASA MOSFET thermal-overstress ageing
+
+`backend/data/nasa_mosfet_aging.csv` (1 MB) summarises NASA PCoE data set 13, which is 42 devices and a 7.3 GB
+archive of MATLAB files. `backend/scripts/import_nasa_mosfet.py` rebuilds it: it streams the archive once, keeps
+per-minute steady-state readings and never writes the raw files to disk (about 7 minutes).
+
+R_DS(on) is taken as V_DS / I_D while the device conducts at its stress temperature. Of the 42 devices, 26 have enough
+data. The *NASA ageing data* page back-tests the drift model on them, using the first 25 %, 50 % and 75 % of each run:
+
+| Share of run seen | Gradual drifters (13) | Abrupt failures (13) |
+|---|---|---|
+| 25 % | 13.6 pp | 34.7 pp |
+| 50 % | 6.9 pp | 43.3 pp |
+| 75 % | 4.7 pp | 31.9 pp |
+
+(Median absolute error in the final ΔR_DS(on).) Gradual wear-out is predictable early; sudden die-attach failures are
+not. That is why the app combines drift prediction with lot-relative screening and surface inspection.
 
 ## Tests
 

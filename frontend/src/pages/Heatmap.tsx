@@ -33,16 +33,15 @@ export default function Heatmap() {
   return (
     <>
       <PageHead
-        eyebrow="Visual"
         title="Risk heatmap"
-        lede="The whole lot at a glance. Navy parts are in family, teal ones are worth a look, and brick-red ones are rejected."
+        lede="The whole lot on one screen. Navy parts are in family with the lot, teal ones are on hold, and red ones are rejected."
         actions={<LotPicker value={lot} onChange={setLot} />}
       />
       {error && <ErrorBox error={error} />}
       {loading && !data && <Loading height={480} />}
       {data && (
         <section className="card">
-          <div className="spread" style={{ marginBottom: 20 }}>
+          <div className="spread" style={{ marginBottom: 20, alignItems: "flex-end" }}>
             <div className="seg">
               <button className={mode === "grid" ? "on" : ""} onClick={() => setMode("grid")}>
                 Risk grid
@@ -83,7 +82,8 @@ export default function Heatmap() {
                     style={{
                       aspectRatio: "1",
                       border: 0,
-                      borderRadius: 8,
+                      borderRadius: 2,
+                      transition: "transform .15s, opacity .2s",
                       cursor: "pointer",
                       background: STATUS_COLOR[c.status],
                       opacity: c.status === "PASS" ? 0.35 + (c.risk / 40) * 0.65 : 1,
@@ -94,7 +94,7 @@ export default function Heatmap() {
                       alignItems: "flex-start",
                       padding: "6px 7px",
                       fontSize: 10,
-                      fontWeight: 700,
+                      fontFamily: "var(--mono)",
                       outline: hover?.component_id === c.component_id ? "2px solid var(--navy)" : undefined,
                       outlineOffset: 2,
                     }}
@@ -117,7 +117,7 @@ export default function Heatmap() {
                     <b>{hover.component_id}</b> · socket {hover.socket} · risk {hover.risk} — {hover.headline.replace(hover.component_id, "").replace(/^\s*/, "")}
                   </>
                 ) : (
-                  <span className="muted">Hover or tap a tile to see why it is coloured that way; click it to open the passport.</span>
+                  <span className="muted">Hover over or tap a square to see the finding. Click it to open the part's passport.</span>
                 )}
               </div>
             </>

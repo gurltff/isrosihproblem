@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { BarChart } from "../components/Charts";
 import { ErrorBox, Loading, LotPicker, PageHead, StatusBadge, Tile, useLot } from "../components/ui";
 import { api, type BatchMeta, type Status } from "../lib/api";
+import { stripId } from "./Detector";
 import { useAsync, useData } from "../lib/data";
 import { dateText, hours } from "../lib/format";
 
@@ -46,24 +47,29 @@ export default function Dashboard() {
   return (
     <>
       <PageHead
-        eyebrow="Overview"
         title="Batch health"
-        lede="Every part is judged against its own lot rather than a fixed datasheet line, so you can spot a drifting part while it is still inside its limits."
+        lede={
+          <>
+            {batches.length} lots, {totalParts.toLocaleString()} parts. {b.batch_id}{" "}
+            {b.in_progress ? `is in the chamber, ${b.latest_hour} h into a 168 h run.` : "finished its 168 h run."} Parts
+            are compared with their own lot, not only with the datasheet.
+          </>
+        }
         actions={<LotPicker value={lot} onChange={setLot} />}
       />
 
-      <div className="stack">
-        <div className="grid grid-4">
+      <div className="stack stagger">
+        <div className="ledger">
           <Tile
             dark
-            label={`${b.batch_id} risk index`}
+            label="Lot risk index"
             value={b.risk_index}
             unit="/ 100"
-            note={b.risk_index >= 50 ? "Lot-level concern: escalate" : b.risk_index >= 30 ? "Elevated: watch" : "Healthy lot"}
+            note={b.risk_index >= 50 ? "High; escalate to the lot level" : b.risk_index >= 30 ? "Elevated; keep an eye on it" : "Normal for this product"}
           />
           <Tile label="Screening yield" value={b.yield_pct} unit="%" note={`${b.counts.PASS} of ${b.n} parts pass`} />
           <Tile
-            label="Flagged"
+            label="Rejected · on hold"
             value={
               <span className="row" style={{ gap: 14 }}>
                 <span style={{ color: "var(--brick)" }}>{b.counts.REJECT}</span>
@@ -71,7 +77,7 @@ export default function Dashboard() {
                 <span style={{ color: "var(--teal)" }}>{b.counts.REVIEW}</span>
               </span>
             }
-            note="Reject / review"
+            note="Parts needing a decision"
           />
           <Tile
             label={b.in_progress ? "Socket time saved" : "Read point"}
@@ -88,8 +94,8 @@ export default function Dashboard() {
         <div className="grid grid-main">
           <section className="card">
             <div className="card-head">
-              <h2>Risk index across lots</h2>
-              <span className="small faint">Click a bar to open that lot</span>
+              <h2>Risk index by lot</h2>
+              <span className="small faint">Select a bar to switch lot</span>
             </div>
             <BarChart
               bars={batches.map((x) => ({
@@ -119,7 +125,7 @@ export default function Dashboard() {
 
           <section className="card">
             <div className="card-head">
-              <h2>What drives the flags</h2>
+              <h2>Why parts were flagged</h2>
               <span className="small faint">{b.batch_id}</span>
             </div>
             <div className="stack" style={{ gap: 14 }}>
@@ -141,15 +147,14 @@ export default function Dashboard() {
                           style={{
                             width: `${(n / flagMax) * 100}%`,
                             background: k === b.top_param ? "var(--navy)" : "var(--sky)",
-                            borderRadius: 999,
                           }}
                         />
                       </div>
                     </div>
                   );
                 })}
-              <p className="small muted">
-                Counted by each flagged part's primary finding.
+              <p className="note" style={{ marginTop: 0 }}>
+                Each flagged part is counted once, under its main finding.
                 {b.top_param && (
                   <>
                     {" "}
@@ -164,7 +169,7 @@ export default function Dashboard() {
         <div className="grid grid-main">
           <section className="card">
             <div className="card-head">
-              <h2>Highest-risk parts</h2>
+              <h2>Parts to look at first</h2>
               <Link to={`/detector?lot=${b.batch_id}`} className="btn small ghost">
                 All {b.n} parts
               </Link>
@@ -187,11 +192,16 @@ export default function Dashboard() {
                     alignItems: "start",
                   }}
                 >
-                  <StatusBadge status={c.status} />
-                  <span className="small" style={{ lineHeight: 1.5 }}>
-                    {c.headline}
+                  <span className="mono" style={{ color: "var(--navy)", fontWeight: 500, paddingTop: 1 }}>
+                    {c.component_id}
                   </span>
-                  <span className="num" style={{ fontFamily: "var(--serif)", fontWeight: 700, fontSize: 20 }}>
+                  <span className="small" style={{ lineHeight: 1.5 }}>
+                    <StatusBadge status={c.status} />
+                    <span className="muted" style={{ display: "block", marginTop: 2 }}>
+                      {stripId(c.headline, c.component_id).replace(/^(rejected|flagged for review) — /, "")}
+                    </span>
+                  </span>
+                  <span className="num mono" style={{ fontWeight: 500 }}>
                     {c.risk}
                   </span>
                 </Link>
@@ -201,13 +211,13 @@ export default function Dashboard() {
 
           <section className="card">
             <div className="card-head">
-              <h2>Drift model back-test</h2>
+              <h2>How well the drift model predicts</h2>
             </div>
             {bt ? (
               <div className="stack" style={{ gap: 16 }}>
                 <p className="small muted">
-                  Every completed part in history, projected to 168 h from its 0 h and 24 h readings only, then checked against
-                  what actually happened.
+                  Each completed part was projected to 168 h from only its 0 h and 24 h readings, and the projection was then
+                  checked against its real 168 h reading.
                 </p>
                 <dl className="kv">
                   <dt>Parts back-tested</dt>
@@ -239,9 +249,6 @@ export default function Dashboard() {
         <section className="card">
           <div className="card-head">
             <h2>All lots</h2>
-            <span className="small faint">
-              {batches.length} lots · {totalParts.toLocaleString()} parts screened
-            </span>
           </div>
           <div className="table-wrap">
             <table>
@@ -265,13 +272,13 @@ export default function Dashboard() {
                     style={x.batch_id === lot ? { background: "#fbf8f6" } : undefined}
                   >
                     <td>
-                      <span className="strong">{x.batch_id}</span>
+                      <span className="strong mono">{x.batch_id}</span>
                       {x.source === "upload" && <span className="pill" style={{ marginLeft: 8 }}>uploaded</span>}
                     </td>
                     <td className="hide-sm muted">{dateText(x.date)}</td>
                     <td>
                       {x.in_progress ? (
-                        <span className="pill live">In chamber · {x.latest_hour} h</span>
+                        <span className="pill live">In chamber, {x.latest_hour} h</span>
                       ) : (
                         <span className="pill">Complete</span>
                       )}

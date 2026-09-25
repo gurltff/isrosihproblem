@@ -14,7 +14,7 @@ export function useWidth<T extends HTMLElement>(): [React.RefObject<T>, number] 
   return [ref, w];
 }
 
-function niceTicks(min: number, max: number, count = 4): number[] {
+export function niceTicks(min: number, max: number, count = 4): number[] {
   const span = max - min || Math.abs(max) || 1;
   const raw = span / count;
   const mag = 10 ** Math.floor(Math.log10(raw));
@@ -58,6 +58,7 @@ export function LineChart({
   xTicks = [0, 24, 96, 168],
   xMax = 168,
   format = (v: number) => v.toFixed(2),
+  xFormat = (h: number) => `${h} h`,
   vline,
 }: {
   series: Series[];
@@ -67,6 +68,7 @@ export function LineChart({
   xTicks?: number[];
   xMax?: number;
   format?: (v: number) => string;
+  xFormat?: (h: number) => string;
   vline?: { x: number; label: string };
 }) {
   const [ref, width] = useWidth<HTMLDivElement>();
@@ -139,7 +141,7 @@ export function LineChart({
           ))}
           {xTicks.map((t) => (
             <text key={t} x={x(t)} y={height - 8} textAnchor="middle">
-              {t} h
+              {xFormat(t)}
             </text>
           ))}
           {bands.map((b) => (
@@ -218,7 +220,7 @@ export function LineChart({
       )}
       {hover !== null && hoverRows.length > 0 && (
         <div className="tooltip" style={{ left: x(hover), top: m.t + 8 }}>
-          <b>{hover} h</b>
+          <b>{xFormat(hover)}</b>
           {hoverRows.map(({ s, p }) => (
             <div key={s.id} className="t-row">
               <span className="swatch" style={{ background: s.color, width: 8, height: 8 }} />
@@ -280,7 +282,7 @@ export function BarChart({
           {bars.map((b, i) => {
             const cx = m.l + slot * i + slot / 2;
             const h = Math.max(ih - (y(b.value) - m.t), 0);
-            const r = Math.min(4, h / 2, bw / 2);
+            const r = Math.min(2, h / 2, bw / 2);
             const x0 = cx - bw / 2;
             const yt = y(b.value);
             const d = `M${x0},${m.t + ih}V${yt + r}Q${x0},${yt} ${x0 + r},${yt}H${x0 + bw - r}Q${x0 + bw},${yt} ${x0 + bw},${yt + r}V${m.t + ih}Z`;
@@ -294,12 +296,12 @@ export function BarChart({
                 style={{ cursor: onSelect ? "pointer" : undefined }}
               >
                 <rect x={m.l + slot * i} y={m.t} width={slot} height={ih} fill="transparent" />
-                <path d={d} fill={b.color} opacity={dim ? 0.45 : 1} />
+                <path d={d} fill={b.color} opacity={dim ? 0.4 : 1} style={{ transition: "opacity .2s" }} />
                 <text
                   x={cx}
                   y={yt - 6}
                   textAnchor="middle"
-                  style={{ fill: "var(--ink)", fontWeight: 700, fontSize: 12 }}
+                  style={{ fill: "var(--ink)", fontFamily: "var(--mono)", fontSize: 11 }}
                 >
                   {b.value}
                 </text>

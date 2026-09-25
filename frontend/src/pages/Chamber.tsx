@@ -40,9 +40,8 @@ export default function Chamber() {
   return (
     <>
       <PageHead
-        eyebrow="Live"
         title="Chamber view"
-        lede="The burn-in board as it sits in the oven. Each socket shows the part seated in it and that part's current disposition."
+        lede="Board 1 as it sits in the oven, laid out socket by socket. Pick a socket to see the part in it."
         actions={<LotPicker value={lot} onChange={setLot} />}
       />
       {error && <ErrorBox error={error} />}
@@ -55,17 +54,19 @@ export default function Chamber() {
           >
             <div className="spread" style={{ marginBottom: 18 }}>
               <div>
-                <div className="eyebrow" style={{ color: "rgba(200,217,230,.7)" }}>
-                  Board 1 · {data.batch_id}
+                <div className="small mono" style={{ color: "rgba(200,217,230,.7)" }}>
+                  BOARD 1 / {data.batch_id}
                 </div>
                 <div style={{ fontFamily: "var(--serif)", fontSize: 26, color: "var(--white)", fontWeight: 700 }}>
                   {data.in_progress ? `${data.latest_hour} h of 168 h` : "Burn-in complete"}
                 </div>
               </div>
-              {data.in_progress ? <span className="pill live">Last read {data.latest_hour} h</span> : <span className="pill">168 h</span>}
+              <span className="small mono" style={{ color: "rgba(200,217,230,.8)" }}>
+                {data.in_progress ? `last read at ${data.latest_hour} h` : "run complete"}
+              </span>
             </div>
             <div
-              style={{ height: 6, borderRadius: 3, background: "rgba(200,217,230,.15)", marginBottom: 22, overflow: "hidden" }}
+              style={{ height: 3, background: "rgba(200,217,230,.15)", marginBottom: 22, overflow: "hidden" }}
               aria-label={`Burn-in progress ${Math.round(progress * 100)}%`}
             >
               <div style={{ width: `${progress * 100}%`, height: "100%", background: "var(--sky)" }} />
@@ -94,16 +95,17 @@ export default function Chamber() {
               <span><i className="swatch" style={{ background: "var(--sky)", borderRadius: 6 }} /> Pass</span>
               <span><i className="swatch" style={{ background: "var(--teal)", borderRadius: 6 }} /> Review</span>
               <span><i className="swatch" style={{ background: "var(--brick)", borderRadius: 6 }} /> Reject</span>
+              <span style={{ marginLeft: "auto" }}>Numbers are part IDs</span>
             </div>
           </section>
 
           <section className="card">
             {sel ? (
               <div className="stack" style={{ gap: 16 }}>
-                <div className="spread">
+                <div className="spread fade" key={sel.component_id}>
                   <div>
-                    <div className="eyebrow">Socket {sel.socket}</div>
-                    <h2 style={{ marginTop: 4 }}>{sel.component_id}</h2>
+                    <div className="small muted">Socket {sel.socket}</div>
+                    <h2 className="mono" style={{ marginTop: 4, fontFamily: "var(--mono)", fontWeight: 500 }}>{sel.component_id}</h2>
                   </div>
                   <StatusBadge status={sel.status} />
                 </div>
@@ -183,7 +185,8 @@ function Row({
               boxShadow: c.status === "REJECT" ? "0 0 0 4px rgba(165,67,47,.28)" : undefined,
               color: c.status === "PASS" ? "var(--navy)" : "var(--white)",
               fontSize: "clamp(8px, 1.2vw, 11px)",
-              fontWeight: 700,
+              fontFamily: "var(--mono)",
+              transition: "transform .15s, border-color .15s",
             }}
           >
             <span className="hide-sm">{c.component_id.replace(/^C-0*/, "")}</span>

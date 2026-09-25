@@ -80,7 +80,7 @@ export default function Passport() {
         </Link>
       </div>
 
-      <div className="stack">
+      <div className="stack stagger">
         <section className="card" style={{ padding: 0, overflow: "hidden" }}>
           <div
             style={{
@@ -88,33 +88,39 @@ export default function Passport() {
               gridTemplateColumns: "minmax(0,1fr) auto",
               gap: 24,
               padding: "28px 28px 24px",
-              borderTop: `6px solid ${STATUS_COLOR[data.status]}`,
+              borderTop: `3px solid ${STATUS_COLOR[data.status]}`,
             }}
           >
             <div>
-              <div className="eyebrow">Component passport</div>
-              <h1 style={{ marginTop: 8 }}>{data.component_id}</h1>
+              <div className="small muted">Part passport</div>
+              <h1 style={{ marginTop: 6 }}>{data.component_id}</h1>
               <div className="row small muted" style={{ marginTop: 10, gap: 8 }}>
-                <span className="pill">{lot}</span>
-                <span className="pill">Socket {data.socket || "—"}</span>
-                {data.serial && <span className="pill">{data.serial}</span>}
+                <span className="mono">{lot}</span>
+                <span className="faint">/</span>
+                <span>socket <span className="mono">{data.socket || "—"}</span></span>
+                {data.serial && (
+                  <>
+                    <span className="faint">/</span>
+                    <span className="mono">{data.serial}</span>
+                  </>
+                )}
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
               <StatusBadge status={data.status} />
               <div
-                style={{ fontFamily: "var(--serif)", fontSize: 56, fontWeight: 800, lineHeight: 1, marginTop: 10, color: STATUS_COLOR[data.status] }}
+                style={{ fontFamily: "var(--display)", fontSize: 56, fontWeight: 700, lineHeight: 1, marginTop: 10, color: STATUS_COLOR[data.status] }}
               >
                 {data.risk}
               </div>
-              <div className="eyebrow">risk / 100</div>
+              <div className="small faint">risk score, out of 100</div>
             </div>
           </div>
           <div style={{ padding: "0 28px 28px", display: "grid", gap: 20 }}>
             <p style={{ fontSize: 17, lineHeight: 1.55, color: "var(--navy)", maxWidth: "75ch" }}>{data.headline}</p>
             {data.reasons.length > 1 && (
               <div>
-                <div className="eyebrow" style={{ marginBottom: 10 }}>All findings</div>
+                <h3 style={{ marginBottom: 10 }}>Findings</h3>
                 <ul className="reason-list">
                   {data.reasons.map((r, i) => (
                     <li key={i}>
@@ -133,7 +139,7 @@ export default function Passport() {
 
         <section className="card">
           <div className="card-head">
-            <h2>Burn-in journey</h2>
+            <h2>Through burn-in</h2>
             <div className="seg" role="tablist">
               {params.map((x) => (
                 <button key={x.key} className={x.key === p?.key ? "on" : ""} onClick={() => setActive(x.key)}>
@@ -170,7 +176,7 @@ export default function Passport() {
         <section className="card">
           <div className="card-head">
             <h2>Parameters</h2>
-            <span className="small faint">latest read point vs lot</span>
+            <span className="small faint">latest reading against the lot</span>
           </div>
           <div className="table-wrap">
             <table>

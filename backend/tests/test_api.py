@@ -66,3 +66,14 @@ def test_vision_offline_screen(client, tmp_path):
     body = r.json()
     assert body["engine"] == "local"
     assert any(f["type"] == "corrosion" for f in body["findings"])
+
+
+def test_nasa_validation(client):
+    body = client.get("/api/nasa").json()
+    if not body["available"]:
+        pytest.skip("run scripts/import_nasa_mosfet.py to build the NASA summary")
+    s = body["summary"]
+    assert s["devices"] >= 20
+    # With more of the run seen, gradual drifters are predicted better.
+    g = s["error_gradual"]
+    assert g["75"]["median_abs_error_pp"] < g["25"]["median_abs_error_pp"]
