@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, type BatchMeta, type DriftModelInfo, type Param } from "./api";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { api, type BatchMeta, type DriftModelInfo, type Known, type Param } from "./api";
 
 interface DataState {
   params: Param[];
@@ -15,11 +15,18 @@ interface DataState {
 const Ctx = createContext<DataState | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [params, setParams] = useState<Param[]>([]);
-  const [batches, setBatches] = useState<BatchMeta[]>([]);
-  const [model, setModel] = useState<DriftModelInfo | null>(null);
-  const [claudeVision, setClaudeVision] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // In the static build these answers are compiled in, so the first render
+  // already has them; on the server build they arrive a moment later.
+  const [init] = useState(() => ({
+    p: (api.params() as Known<Param[]>).value,
+    b: (api.batches() as Known<{ batches: BatchMeta[]; drift_model: DriftModelInfo }>).value,
+    h: (api.health() as Known<{ claude_vision: boolean }>).value,
+  }));
+  const [params, setParams] = useState<Param[]>(init.p ?? []);
+  const [batches, setBatches] = useState<BatchMeta[]>(init.b?.batches ?? []);
+  const [model, setModel] = useState<DriftModelInfo | null>(init.b?.drift_model ?? null);
+  const [claudeVision, setClaudeVision] = useState(init.h?.claude_vision ?? false);
+  const [loading, setLoading] = useState(!(init.p && init.b && init.h));
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -38,8 +45,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    if (loading) refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const param = useCallback((key: string | null | undefined) => params.find((p) => p.key === key), [params]);
 
@@ -56,26 +64,31 @@ export function useData(): DataState {
   return v;
 }
 
-/** Load something async, re-running when deps change. */
+/**
+ * Load something async, re-running when deps change. If the answer is
+ * already known (compiled-in or fetched before) it is returned on the very
+ * first render, so a page never flashes empty. While a new answer loads, the
+ * previous one stays on screen.
+ */
 export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]) {
-  const [state, setState] = useState<{ data: T | null; error: string | null; loading: boolean }>({
-    data: null,
-    error: null,
-    loading: true,
-  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const promise = useMemo(fn, deps) as Known<T>;
+  const [res, setRes] = useState<{ p: Promise<T>; data: T | null; error: string | null } | null>(null);
+  const known = "value" in promise;
   useEffect(() => {
+    if (known) return;
     let live = true;
-    setState((s) => ({ ...s, loading: true, error: null }));
-    fn().then(
-      (data) => live && setState({ data, error: null, loading: false }),
-      (e) => live && setState({ data: null, error: e instanceof Error ? e.message : String(e), loading: false })
+    promise.then(
+      (data) => live && setRes({ p: promise, data, error: null }),
+      (e) => live && setRes({ p: promise, data: null, error: e instanceof Error ? e.message : String(e) })
     );
     return () => {
       live = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  return state;
+  }, [promise, known]);
+  if (known) return { data: promise.value as T, error: null, loading: false };
+  if (res && res.p === promise) return { data: res.data, error: res.error, loading: false };
+  return { data: res?.data ?? null, error: null, loading: true };
 }
 
 const LOT_KEY = "sentinel.lot";

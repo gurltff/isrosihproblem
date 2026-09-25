@@ -8,3 +8,4 @@ frontend/dist/
 backend/data/uploads/
 frontend/public/mediapipe/
 *.tsbuildinfo
+frontend/.static/

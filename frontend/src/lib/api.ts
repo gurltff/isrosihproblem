@@ -201,43 +201,67 @@ function staticPath(path: string) {
   return asset(`${p}${asOf ? `_${asOf}` : ""}.json`);
 }
 
-// Every GET is kept in memory, so a page opened twice (or a page whose data
-// was preloaded) renders without touching the network.
-const cache = new Map<string, Promise<unknown>>();
-let bundle: Promise<Record<string, unknown>> | null = null;
+// The static build compiles every lot-level answer into the app itself
+// (see vite.config.ts), so pages have their data the moment they render.
+// Other GETs are fetched once and remembered.
+import staticBundle from "virtual:static-bundle";
 
-/** Static build: fetch the pre-rendered bundle of lot-level answers once. */
-export function preload() {
-  if (!STATIC) return Promise.resolve();
-  // The build stamp keeps a browser from pairing new code with an old cached bundle.
-  bundle ??= fetch(asset(`api/bundle.json?v=${__BUILD__}`))
-    .then((r) => (r.ok ? r.json() : {}))
-    .catch(() => ({}));
-  return bundle.then(() => undefined);
-}
+const BUNDLE = staticBundle as Record<string, unknown>;
+const values = new Map<string, unknown>();
+const inflight = new Map<string, Promise<unknown>>();
 
-function req<T>(path: string, init?: RequestInit): Promise<T> {
-  if (init?.method && init.method !== "GET") return fetchJson<T>(path, init);
-  const key = path;
-  let p = cache.get(key) as Promise<T> | undefined;
-  if (!p) {
-    p = (STATIC ? preload().then(() => bundle!) : Promise.resolve({} as Record<string, unknown>)).then((b) => {
-      const k = path.replace(/\?as_of=(\d+)$/, "_$1");
-      if (k in b) return b[k] as T;
-      return fetchJson<T>(path);
-    });
-    cache.set(key, p);
-    p.catch(() => cache.delete(key)); // let a failed request be retried
-  }
+/** A promise that also carries its value when it is already known. */
+export type Known<T> = Promise<T> & { value?: T };
+
+function known<T>(v: T): Known<T> {
+  const p = Promise.resolve(v) as Known<T>;
+  p.value = v;
   return p;
 }
 
+/** Kept for callers that want to warm the cache; the bundle needs no loading. */
+export function preload() {
+  return Promise.resolve();
+}
+
+function req<T>(path: string, init?: RequestInit): Known<T> {
+  if (init?.method && init.method !== "GET") return fetchJson<T>(path, init) as Known<T>;
+  const bundleKey = path.replace(/\?as_of=(\d+)$/, "_$1");
+  if (bundleKey in BUNDLE) return known(BUNDLE[bundleKey] as T);
+  if (values.has(path)) return known(values.get(path) as T);
+  let p = inflight.get(path) as Promise<T> | undefined;
+  if (!p) {
+    p = fetchJson<T>(path).then(
+      (v) => {
+        values.set(path, v);
+        inflight.delete(path);
+        return v;
+      },
+      (e) => {
+        inflight.delete(path); // let a failed request be retried
+        throw e;
+      }
+    );
+    inflight.set(path, p);
+  }
+  return p as Known<T>;
+}
+
 export function clearCache() {
-  cache.clear();
+  values.clear();
+  inflight.clear();
 }
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(STATIC ? staticPath(path) : path, init);
+  // Static files carry the build stamp so a browser never mixes deploys.
+  const url = STATIC ? `${staticPath(path)}?v=${__BUILD__}` : path;
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch {
+    await new Promise((r) => setTimeout(r, 600));
+    res = await fetch(url, init); // one retry for a dropped connection
+  }
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
     try {
