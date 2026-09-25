@@ -265,7 +265,9 @@ export function BarChart({
   const y = (v: number) => m.t + ih - (v / top) * ih;
   const ticks = niceTicks(0, top, 4);
 
-  useEffect(() => setHover(null), [bars]);
+  useEffect(() => {
+    setHover(null);
+  }, [bars]);
 
   return (
     <div className="chart" ref={ref} style={{ height }}>

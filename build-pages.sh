@@ -3,6 +3,14 @@
 # The repository root index.html redirects there.
 set -e
 cd "$(dirname "$0")"
+
+# Guard: an effect written as `useEffect(() => expr)` returns expr to React as
+# its cleanup. Newer Chrome makes scrollTo return a Promise, which crashed every
+# page change ("a is not a function"). Effects must use a block body.
+if grep -rnE "useEffect\(\(\) => [^{(]" frontend/src | grep -v "useEffect(() => () =>"; then
+  echo "error: write effects as useEffect(() => { ... }) (see comment above)" >&2
+  exit 1
+fi
 # Pre-render the API first: the static build compiles the lot-level answers in.
 rm -rf frontend/.static && python3 backend/scripts/export_static.py frontend/.static
 cp frontend/.static/api/bundle.json frontend/.static/bundle.json
