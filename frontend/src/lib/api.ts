@@ -1,0 +1,206 @@
+export type Status = "PASS" | "REVIEW" | "REJECT";
+
+export interface Param {
+  key: string;
+  label: string;
+  short: string;
+  unit: string;
+  limit_low: number | null;
+  limit_high: number | null;
+  delta_rel: number;
+  delta_abs: number;
+  log_scale: boolean;
+}
+
+export interface Reason {
+  kind: "limit" | "zscore" | "delta" | "drift" | "multivariate";
+  param: string | null;
+  severity: Status;
+  text: string;
+  z?: number;
+}
+
+export interface Component {
+  component_id: string;
+  serial: string;
+  socket: string;
+  status: Status;
+  risk: number;
+  max_z: number;
+  if_score: number;
+  early_reject: boolean;
+  headline: string;
+  primary_param: string | null;
+  reasons: Reason[];
+  recommendation: string;
+  z: Record<string, number>;
+  latest: Record<string, number | null>;
+}
+
+export interface BatchMeta {
+  batch_id: string;
+  date: string;
+  source: "demo" | "upload";
+  hours: number[];
+  latest_hour: number;
+  in_progress: boolean;
+  n: number;
+  counts: Record<Status, number>;
+  yield_pct: number;
+  risk_index: number;
+  flags_by_param: Record<string, number>;
+  top_param: string | null;
+  early_rejects: number;
+  socket_hours_saved: number;
+}
+
+export interface Backtest {
+  parts: number;
+  true_early_rejects: number;
+  false_early_rejects: number;
+  missed: number;
+  correct_pass: number;
+  precision: number | null;
+  recall: number | null;
+  socket_hours_saved: number;
+  median_abs_pct_error: Record<string, number | null>;
+}
+
+export interface DriftModelInfo {
+  exponents: Record<string, number>;
+  backtest: Backtest;
+}
+
+export interface Batch extends BatchMeta {
+  components: Component[];
+}
+
+export interface Point {
+  hour: number;
+  value: number;
+}
+
+export interface ParamProjection {
+  v0: number;
+  predicted_168: number;
+  band_low: number;
+  band_high: number;
+  predicted_shift: number;
+  predicted_shift_pct: number | null;
+  allowed_shift: number;
+  slope_per_24h: number;
+  exponent: number;
+  early_reject: boolean;
+  watch: boolean;
+  actual_168: number | null;
+  curve: Point[];
+  envelope: { hour: number; high: number; low: number }[];
+}
+
+export interface Projection {
+  as_of: number;
+  early_reject: boolean;
+  watch: boolean;
+  params: Record<string, ParamProjection>;
+}
+
+export interface Passport extends Component {
+  batch_id: string;
+  series: Record<string, Point[]>;
+  lot_bands: Record<string, { hour: number; median: number; p10: number; p90: number }[]>;
+  projection: Projection;
+}
+
+export interface DriftRow {
+  component_id: string;
+  socket: string;
+  early_reject: boolean;
+  watch: boolean;
+  worst_param: string;
+  worst_ratio: number;
+  actual_fail: boolean | null;
+  params: Record<
+    string,
+    Pick<
+      ParamProjection,
+      | "v0"
+      | "predicted_168"
+      | "predicted_shift_pct"
+      | "allowed_shift"
+      | "actual_168"
+      | "slope_per_24h"
+      | "early_reject"
+      | "watch"
+    >
+  >;
+}
+
+export interface DriftView {
+  batch_id: string;
+  as_of: number;
+  components: DriftRow[];
+  early_rejects: number;
+  socket_hours_saved: number;
+  model: DriftModelInfo;
+}
+
+export interface Finding {
+  type: string;
+  description: string;
+  location: string;
+  severity: "low" | "medium" | "high";
+  confidence: number;
+  box: { x: number; y: number; w: number; h: number };
+}
+
+export interface Inspection {
+  engine: "claude" | "local";
+  model?: string;
+  notice?: string;
+  equipment_detected: boolean;
+  equipment_type: string;
+  overall: "NOMINAL" | "REVIEW" | "REJECT";
+  summary: string;
+  findings: Finding[];
+}
+
+async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, init);
+  if (!res.ok) {
+    let detail = `${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.detail) detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+    } catch {
+      /* keep status text */
+    }
+    throw new Error(detail);
+  }
+  return res.json() as Promise<T>;
+}
+
+const enc = encodeURIComponent;
+
+export const api = {
+  health: () => req<{ ok: boolean; claude_vision: boolean; model: string }>("/api/health"),
+  params: () => req<Param[]>("/api/params"),
+  batches: () => req<{ batches: BatchMeta[]; drift_model: DriftModelInfo }>("/api/batches"),
+  batch: (id: string) => req<Batch>(`/api/batches/${enc(id)}`),
+  passport: (id: string, cid: string) => req<Passport>(`/api/batches/${enc(id)}/components/${enc(cid)}`),
+  drift: (id: string, asOf: number) => req<DriftView>(`/api/batches/${enc(id)}/drift?as_of=${asOf}`),
+  componentDrift: (id: string, cid: string, asOf: number) =>
+    req<{ component_id: string; series: Record<string, Point[]>; projection: Projection }>(
+      `/api/batches/${enc(id)}/components/${enc(cid)}/drift?as_of=${asOf}`
+    ),
+  upload: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return req<{ batches: BatchMeta[] }>("/api/upload", { method: "POST", body: fd });
+  },
+  inspect: (image: Blob, engine: "auto" | "claude" | "local" = "auto") => {
+    const fd = new FormData();
+    fd.append("image", image, "frame.jpg");
+    fd.append("engine", engine);
+    return req<Inspection>("/api/vision/inspect", { method: "POST", body: fd });
+  },
+};
