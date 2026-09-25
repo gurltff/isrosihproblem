@@ -2,6 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, HashRouter } from "react-router-dom";
 import App from "./App";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { guardDomAgainstExtensions } from "./lib/domGuard";
 import { STATIC } from "./lib/api";
 import { DataProvider } from "./lib/data";
 
@@ -9,13 +11,17 @@ import { DataProvider } from "./lib/data";
 const Router = STATIC ? HashRouter : BrowserRouter;
 import "./styles.css";
 
+guardDomAgainstExtensions();
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <Router>
-      <DataProvider>
-        <App />
-      </DataProvider>
-    </Router>
+    <ErrorBoundary resetKey="root">
+      <Router>
+        <DataProvider>
+          <App />
+        </DataProvider>
+      </Router>
+    </ErrorBoundary>
   </React.StrictMode>
 );
 

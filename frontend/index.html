@@ -1,7 +1,8 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" translate="no">
   <head>
     <meta charset="UTF-8" />
+    <meta name="google" content="notranslate" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#F5EFEB" />
     <meta name="description" content="Burn-in screening intelligence: lot-relative anomaly detection, drift prediction and surface inspection for space-grade components." />
@@ -23,25 +24,74 @@
       </div>
     </div>
     <script>
-      // If the app cannot start, say why instead of leaving a blank page.
+      // Last line of defence: never leave a blank page. If the app dies (before
+      // or after it starts), reload once on its own; if it dies again, say why.
       (function () {
+        var KEY = "sentinel.recovered";
         function show(msg) {
-          var el = document.getElementById("boot-msg");
-          if (!el) return;
-          el.innerHTML =
-            '<b style="color:#a5432f">The app could not start.</b><br>' + msg +
-            '<br><br>Try a hard refresh (Ctrl+Shift+R, or Cmd+Shift+R on a Mac). If it still fails, send a screenshot of this message.';
+          var box = document.getElementById("fatal") || document.createElement("div");
+          box.id = "fatal";
+          box.style.cssText =
+            "position:fixed;left:16px;right:16px;top:16px;z-index:99;max-width:640px;margin:auto;padding:16px 18px;" +
+            "background:#fff;border-left:4px solid #a5432f;font:14px/1.5 system-ui,sans-serif;color:#2f4156;box-shadow:0 8px 24px rgba(0,0,0,.15)";
+          box.innerHTML =
+            '<b style="color:#a5432f">Sentinel hit an error.</b><br>' + String(msg).replace(/</g, "&lt;") +
+            '<br><br><button onclick="sessionStorage.removeItem(\'' + KEY + '\');location.reload()" ' +
+            'style="padding:6px 12px;border:1px solid #2f4156;background:#2f4156;color:#fff;cursor:pointer">Reload</button>' +
+            " <span style=\"color:#8b939c\">If it keeps happening, send a screenshot of this box.</span>";
+          document.body.appendChild(box);
         }
+        function blank() {
+          var root = document.getElementById("root");
+          return !root || !root.firstElementChild || root.textContent.trim() === "";
+        }
+        function recover(msg) {
+          // Give React a moment: a caught error does not blank the page.
+          setTimeout(function () {
+            if (!blank()) return;
+            var last = +sessionStorage.getItem(KEY) || 0;
+            if (Date.now() - last > 15000) {
+              sessionStorage.setItem(KEY, String(Date.now()));
+              sessionStorage.setItem("sentinel.lastError", String(msg).slice(0, 400));
+              location.reload();
+            } else show(msg);
+          }, 60);
+        }
+        window.__sentinelFatal = recover;
+        // Some failures blank the page without raising an error event; watch
+        // for the app's content disappearing after it has started.
+        window.addEventListener("load", function () {
+          var root = document.getElementById("root");
+          if (!root || !window.MutationObserver) return;
+          new MutationObserver(function () {
+            if (!document.getElementById("boot") && blank()) recover("The page went blank after " + location.hash);
+          }).observe(root, { childList: true });
+        });
+        // After a self-recovery, say what happened so it can be reported.
+        window.addEventListener("load", function () {
+          var err = sessionStorage.getItem("sentinel.lastError");
+          if (!err) return;
+          sessionStorage.removeItem("sentinel.lastError");
+          var n = document.createElement("div");
+          n.style.cssText =
+            "position:fixed;right:16px;bottom:16px;z-index:98;max-width:420px;padding:10px 14px;background:#2f4156;color:#fff;" +
+            "font:12px/1.45 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.2);cursor:pointer";
+          n.title = "Click to dismiss";
+          n.innerHTML = "<b>Recovered from an error</b> (page reloaded itself):<br>" + err.replace(/</g, "&lt;");
+          n.onclick = function () { n.remove(); };
+          document.body.appendChild(n);
+          setTimeout(function () { n.remove(); }, 20000);
+        });
         window.addEventListener("error", function (e) {
           var t = e.target;
-          if (t && t !== window && (t.src || t.href)) show("A file failed to load: " + (t.src || t.href));
-          else if (e.message) show("Error: " + e.message);
+          if (t && t !== window && (t.src || t.href)) recover("A file failed to load: " + (t.src || t.href));
+          else recover(e.message || "Unknown error");
         }, true);
         window.addEventListener("unhandledrejection", function (e) {
-          show("Error: " + (e.reason && e.reason.message ? e.reason.message : e.reason));
+          recover(e.reason && e.reason.message ? e.reason.message : e.reason);
         });
         setTimeout(function () {
-          if (document.getElementById("boot")) show("It is taking unusually long. Your connection may be blocking a file.");
+          if (document.getElementById("boot")) show("The app is taking unusually long to start. Your connection may be blocking a file.");
         }, 15000);
       })();
     </script>

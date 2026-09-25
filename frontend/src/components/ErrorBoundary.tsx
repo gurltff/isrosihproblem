@@ -8,6 +8,10 @@ export default class ErrorBoundary extends Component<{ children: ReactNode; rese
     return { error };
   }
 
+  componentDidCatch(error: Error) {
+    console.error(error);
+  }
+
   componentDidUpdate(prev: { resetKey: string }) {
     if (prev.resetKey !== this.props.resetKey && this.state.error) this.setState({ error: null });
   }
