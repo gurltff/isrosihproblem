@@ -164,8 +164,20 @@ export interface Inspection {
   findings: Finding[];
 }
 
+/** True in the GitHub Pages build: no server, API answers are pre-rendered JSON. */
+export const STATIC = import.meta.env.VITE_STATIC === "1";
+
+/** Resolve a file in public/ against wherever the app is hosted. */
+export const asset = (p: string) => import.meta.env.BASE_URL + p.replace(/^\//, "");
+
+function staticPath(path: string) {
+  const [p, q] = path.split("?");
+  const asOf = new URLSearchParams(q ?? "").get("as_of");
+  return asset(`${p}${asOf ? `_${asOf}` : ""}.json`);
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init);
+  const res = await fetch(STATIC ? staticPath(path) : path, init);
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
     try {
@@ -193,11 +205,16 @@ export const api = {
       `/api/batches/${enc(id)}/components/${enc(cid)}/drift?as_of=${asOf}`
     ),
   upload: (file: File) => {
+    if (STATIC)
+      return Promise.reject(
+        new Error("This hosted demo is read-only. Uploading lot data needs the Python server; see the README to run it.")
+      );
     const fd = new FormData();
     fd.append("file", file);
     return req<{ batches: BatchMeta[] }>("/api/upload", { method: "POST", body: fd });
   },
   inspect: (image: Blob, engine: "auto" | "claude" | "local" = "auto") => {
+    if (STATIC) return import("./localInspect").then((m) => m.inspectInBrowser(image));
     const fd = new FormData();
     fd.append("image", image, "frame.jpg");
     fd.append("engine", engine);
@@ -244,5 +261,7 @@ export interface NasaValidation {
     flagged_early: number;
   };
 }
+
+export const templateUrl = STATIC ? asset("api/template.csv") : "/api/template.csv";
 
 export const nasaApi = () => req<NasaValidation>("/api/nasa");

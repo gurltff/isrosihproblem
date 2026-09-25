@@ -32,6 +32,13 @@ Hand tracking runs entirely in the browser (MediaPipe Hand Landmarker, bundled l
 **Auto-scan:** when the camera settles on something new and no hand is in the frame, the page scans it by itself. Any
 anomalies are boxed on the image.
 
+## Hosted demo (GitHub Pages)
+
+**https://gurltff.github.io/isrosihproblem/** runs the app entirely in the browser. Every analysis result is
+pre-rendered to JSON by `backend/scripts/export_static.py`, and camera scans use an in-browser copy of the offline
+check. Uploading lots and Claude vision need the Python server below. To refresh the hosted copy after changes,
+run `./build-pages.sh` and commit `app/`.
+
 ## Run it
 
 ```bash

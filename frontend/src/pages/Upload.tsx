@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { IconUpload } from "../components/Icons";
 import { PageHead, StatusBadge } from "../components/ui";
-import { api, type BatchMeta } from "../lib/api";
+import { api, templateUrl, type BatchMeta } from "../lib/api";
 import { useData } from "../lib/data";
 import { deltaText, limitText } from "../lib/format";
 
@@ -37,7 +37,7 @@ export default function Upload() {
         title="Upload lot data"
         lede="Add a CSV exported from the burn-in test station. A lot with only 0 h and 24 h readings gets its early-reject projections straight away."
         actions={
-          <a className="btn" href="/api/template.csv" download>
+          <a className="btn" href={templateUrl} download>
             Download template
           </a>
         }

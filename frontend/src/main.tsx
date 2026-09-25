@@ -1,20 +1,24 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, HashRouter } from "react-router-dom";
 import App from "./App";
+import { STATIC } from "./lib/api";
 import { DataProvider } from "./lib/data";
+
+// Static hosts such as GitHub Pages cannot rewrite deep links, so use hash URLs there.
+const Router = STATIC ? HashRouter : BrowserRouter;
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <Router>
       <DataProvider>
         <App />
       </DataProvider>
-    </BrowserRouter>
+    </Router>
   </React.StrictMode>
 );
 
-if ("serviceWorker" in navigator && import.meta.env.PROD) {
+if ("serviceWorker" in navigator && import.meta.env.PROD && !STATIC) {
   window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 }

@@ -4,7 +4,7 @@ import { IconCamera, IconFist, IconHand, IconPoint, IconSwitch, IconUpload, Icon
 
 const GESTURE_ICON = { fist: IconFist, palm: IconHand, point: IconPoint, victory: IconVictory };
 import { PageHead } from "../components/ui";
-import { api, type Finding, type Inspection } from "../lib/api";
+import { api, asset, STATIC, type Finding, type Inspection } from "../lib/api";
 import { useData } from "../lib/data";
 import { GESTURES, GestureTracker, HAND_CONNECTIONS, classify, type Gesture } from "../lib/gestures";
 
@@ -253,10 +253,10 @@ export default function Inspect() {
     (async () => {
       try {
         const { FilesetResolver, HandLandmarker } = await import("@mediapipe/tasks-vision");
-        const fileset = await FilesetResolver.forVisionTasks("/mediapipe/wasm");
+        const fileset = await FilesetResolver.forVisionTasks(asset("mediapipe/wasm"));
         const make = (delegate: "GPU" | "CPU") =>
           HandLandmarker.createFromOptions(fileset, {
-            baseOptions: { modelAssetPath: "/models/hand_landmarker.task", delegate },
+            baseOptions: { modelAssetPath: asset("models/hand_landmarker.task"), delegate },
             runningMode: "VIDEO",
             numHands: 1,
             minHandDetectionConfidence: 0.6,
@@ -569,7 +569,11 @@ export default function Inspect() {
         lede="Hold a board or part up to the camera. When the picture stays still it scans by itself. You can also use your hand: make a fist to freeze and scan, open your palm to go back to live."
         actions={
           <span className={`pill${claudeVision ? " live" : ""}`}>
-            {claudeVision ? "Claude vision connected" : "Offline check only (no API key on server)"}
+            {claudeVision
+              ? "Claude vision connected"
+              : STATIC
+                ? "Hosted demo: checks run in your browser"
+                : "Offline check only (no API key on server)"}
           </span>
         }
       />

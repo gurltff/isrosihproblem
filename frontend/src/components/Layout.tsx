@@ -12,6 +12,7 @@ import {
   IconReport,
   IconUpload,
 } from "./Icons";
+import { asset } from "../lib/api";
 
 const NAV = [
   { group: "Overview" },
@@ -39,7 +40,7 @@ const TABS = [
 function Brand() {
   return (
     <Link to="/" className="brand" aria-label="Sentinel home">
-      <img src="/icon.svg" width={30} height={30} alt="" style={{ borderRadius: 3 }} />
+      <img src={asset("icon.svg")} width={30} height={30} alt="" style={{ borderRadius: 3 }} />
       <span>
         <div className="brand-name">Sentinel</div>
         <div className="brand-sub">burn-in screening</div>
