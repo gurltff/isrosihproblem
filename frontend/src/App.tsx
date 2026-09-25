@@ -16,6 +16,10 @@ import Upload from "./pages/Upload";
 // The camera page pulls in MediaPipe; load it only when visited.
 const Inspect = lazy(() => import("./pages/Inspect"));
 
+// Fetch the camera page's code in the background so it opens instantly too.
+const idle = (cb: () => void) => ("requestIdleCallback" in window ? window.requestIdleCallback(cb) : setTimeout(cb, 1500));
+idle(() => void import("./pages/Inspect"));
+
 function ScrollTop() {
   const { pathname } = useLocation();
   useEffect(() => window.scrollTo(0, 0), [pathname]);

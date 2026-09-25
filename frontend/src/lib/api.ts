@@ -201,7 +201,42 @@ function staticPath(path: string) {
   return asset(`${p}${asOf ? `_${asOf}` : ""}.json`);
 }
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
+// Every GET is kept in memory, so a page opened twice (or a page whose data
+// was preloaded) renders without touching the network.
+const cache = new Map<string, Promise<unknown>>();
+let bundle: Promise<Record<string, unknown>> | null = null;
+
+/** Static build: fetch the pre-rendered bundle of lot-level answers once. */
+export function preload() {
+  if (!STATIC) return Promise.resolve();
+  // The build stamp keeps a browser from pairing new code with an old cached bundle.
+  bundle ??= fetch(asset(`api/bundle.json?v=${__BUILD__}`))
+    .then((r) => (r.ok ? r.json() : {}))
+    .catch(() => ({}));
+  return bundle.then(() => undefined);
+}
+
+function req<T>(path: string, init?: RequestInit): Promise<T> {
+  if (init?.method && init.method !== "GET") return fetchJson<T>(path, init);
+  const key = path;
+  let p = cache.get(key) as Promise<T> | undefined;
+  if (!p) {
+    p = (STATIC ? preload().then(() => bundle!) : Promise.resolve({} as Record<string, unknown>)).then((b) => {
+      const k = path.replace(/\?as_of=(\d+)$/, "_$1");
+      if (k in b) return b[k] as T;
+      return fetchJson<T>(path);
+    });
+    cache.set(key, p);
+    p.catch(() => cache.delete(key)); // let a failed request be retried
+  }
+  return p;
+}
+
+export function clearCache() {
+  cache.clear();
+}
+
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(STATIC ? staticPath(path) : path, init);
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
@@ -238,6 +273,7 @@ export const api = {
       );
     const fd = new FormData();
     fd.append("file", file);
+    clearCache();
     return req<{ batches: BatchMeta[] }>("/api/upload", { method: "POST", body: fd });
   },
   inspect: async (image: Blob, expected?: string) => {

@@ -5,6 +5,7 @@ import basicSsl from "@vitejs/plugin-basic-ssl";
 // `npm run dev:https` serves over self-signed HTTPS on the LAN so phones can
 // open the camera (browsers only allow getUserMedia on HTTPS or localhost).
 export default defineConfig(({ mode }) => ({
+  define: { __BUILD__: JSON.stringify(Date.now().toString(36)) },
   plugins: [react(), ...(mode === "https" ? [basicSsl()] : [])],
   server: {
     fs: { allow: [".."] }, // shared/vision_brief.json sits beside frontend/

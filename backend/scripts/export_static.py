@@ -18,6 +18,9 @@ from app.main import app  # noqa: E402
 
 def main(out: Path) -> None:
     written = 0
+    # Everything a page needs before a part is clicked goes into one file the
+    # app loads at start, so moving between pages never waits on the network.
+    bundle: dict[str, object] = {}
 
     def save(path: str, client: TestClient, url: str | None = None) -> dict:
         nonlocal written
@@ -27,6 +30,8 @@ def main(out: Path) -> None:
         target.parent.mkdir(parents=True, exist_ok=True)
         data = r.json()
         target.write_text(json.dumps(data, separators=(",", ":")))
+        if "/components/" not in path:
+            bundle[path] = data
         written += 1
         return data
 
@@ -56,7 +61,9 @@ def main(out: Path) -> None:
                         c,
                         f"/api/batches/{b}/components/{cid}/drift?as_of={h}",
                     )
-    print(f"wrote {written} JSON files under {out / 'api'}")
+    bundle["/api/health"] = health
+    (out / "api/bundle.json").write_text(json.dumps(bundle, separators=(",", ":")))
+    print(f"wrote {written} JSON files under {out / 'api'} (+ bundle of {len(bundle)})")
 
 
 if __name__ == "__main__":
