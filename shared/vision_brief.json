@@ -1,0 +1,167 @@
+{
+  "system": "You are a quality-assurance inspector for space-grade electronics (discrete semiconductors, ICs, PCBs, connectors). You look at one photo of a part placed in front of an inspection camera and do a pre-cap / incoming visual inspection in the spirit of MIL-STD-750 method 2071 and ESCC external visual inspection.\n\nDo all of the following:\n1. Identify the part: type, package (e.g. TO-220, SOIC-8) and anything else visible.\n2. Transcribe every marking you can read, exactly as printed (part number, date/lot code, logo). Write \"unreadable\" if you cannot read it.\n3. If an expected part is given, say whether the markings match it: \"match\", \"mismatch\" or \"cannot tell\". A mismatch can mean a wrong or counterfeit part, so explain briefly.\n4. Judge each checklist item as \"pass\", \"fail\" or \"n/a\" (not visible / not applicable), with a short note.\n5. List every visible defect with a bounding box in normalised coordinates (x, y = top-left, w, h; all between 0 and 1) and a concrete location (\"left lead, near the package body\").\n6. Give an overall verdict: REJECT for any high-severity defect or a marking mismatch, REVIEW if a human should look, otherwise NOMINAL.\n\nOnly report what is visible. Normal features (moulding marks, tab holes, plating colour, silkscreen) are not defects. If the photo shows no electronic hardware, set equipment_detected to false and describe what you see. If glare, blur or distance limit what you can judge, say so in the summary.",
+  "checklist": [
+    "Package body intact (no cracks, chips or voids)",
+    "Leads / terminations straight, undamaged, no corrosion",
+    "Solder joints sound (if mounted)",
+    "No burn, scorch or heat discolouration",
+    "No contamination or foreign material",
+    "Markings present, legible and consistent"
+  ],
+  "schema": {
+    "type": "object",
+    "properties": {
+      "equipment_detected": {
+        "type": "boolean"
+      },
+      "equipment_type": {
+        "type": "string"
+      },
+      "part_identity": {
+        "type": "string"
+      },
+      "markings": {
+        "type": "string"
+      },
+      "marking_check": {
+        "type": "string",
+        "enum": [
+          "match",
+          "mismatch",
+          "cannot tell",
+          "no expected part"
+        ]
+      },
+      "marking_note": {
+        "type": "string"
+      },
+      "checklist": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string"
+            },
+            "result": {
+              "type": "string",
+              "enum": [
+                "pass",
+                "fail",
+                "n/a"
+              ]
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "item",
+            "result",
+            "note"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "overall": {
+        "type": "string",
+        "enum": [
+          "NOMINAL",
+          "REVIEW",
+          "REJECT"
+        ]
+      },
+      "summary": {
+        "type": "string"
+      },
+      "findings": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "burn_mark",
+                "thermal_discoloration",
+                "corrosion",
+                "solder_defect",
+                "crack",
+                "contamination",
+                "missing_or_misaligned_part",
+                "lifted_lead",
+                "bent_lead",
+                "bulging_or_deformed_package",
+                "marking_defect",
+                "other"
+              ]
+            },
+            "description": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "severity": {
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high"
+              ]
+            },
+            "confidence": {
+              "type": "number"
+            },
+            "box": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "w": {
+                  "type": "number"
+                },
+                "h": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "type",
+            "description",
+            "location",
+            "severity",
+            "confidence",
+            "box"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "equipment_detected",
+      "equipment_type",
+      "part_identity",
+      "markings",
+      "marking_check",
+      "marking_note",
+      "checklist",
+      "overall",
+      "summary",
+      "findings"
+    ],
+    "additionalProperties": false
+  }
+}

@@ -24,7 +24,7 @@ const NAV = [
   { to: "/chamber", label: "Chamber view", icon: IconChamber },
   { to: "/nasa", label: "NASA ageing data", icon: IconData },
   { group: "Inspection" },
-  { to: "/inspect", label: "Surface inspection", icon: IconCamera },
+  { to: "/inspect", label: "Inspection station", icon: IconCamera },
   { group: "Data" },
   { to: "/upload", label: "Upload lot data", icon: IconUpload },
   { to: "/report", label: "QA report", icon: IconReport },

@@ -3,6 +3,6 @@
 # The repository root index.html redirects there.
 set -e
 cd "$(dirname "$0")"
-(cd frontend && npm run prebuild && VITE_STATIC=1 npx vite build --base ./ --outDir ../app --emptyOutDir)
+(cd frontend && VITE_STATIC=1 npx vite build --base ./ --outDir ../app --emptyOutDir)
 python3 backend/scripts/export_static.py app
 touch .nojekyll

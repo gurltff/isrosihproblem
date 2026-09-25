@@ -52,7 +52,7 @@ export async function inspectInBrowser(image: Blob): Promise<Inspection> {
     }
   const mean = lum.reduce((a, b) => a + b, 0) / n;
   const std = Math.sqrt(lum.reduce((a, b) => a + (b - mean) ** 2, 0) / n);
-  const equipment = edgeSum / n > 0.018 && std > 0.06;
+  const equipment = edgeSum / n > 0.008 || std > 0.1;
 
   const findings: Finding[] = [];
 
@@ -139,6 +139,14 @@ export async function inspectInBrowser(image: Blob): Promise<Inspection> {
     notice: "Checked in your browser. The hosted demo has no server, so Claude vision is off.",
     equipment_detected: true,
     equipment_type: "electronic hardware (unclassified)",
+    part_identity: "Not identified (offline check cannot read parts)",
+    markings: "Not read (needs Claude vision)",
+    marking_check: "cannot tell",
+    marking_note: "",
+    checklist: [
+      { item: "No burn, scorch or heat discolouration", result: findings.some((f) => f.type === "thermal_discoloration") ? "fail" : "pass", note: "colour and texture outliers only" },
+      { item: "Leads / terminations free of corrosion", result: findings.some((f) => f.type === "corrosion") ? "fail" : "pass", note: "rust-coloured regions only" },
+    ],
     overall: findings.length ? "REVIEW" : "NOMINAL",
     summary: findings.length
       ? `${findings.length} region(s) look unlike the rest of the surface. Check them by eye.`

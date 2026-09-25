@@ -121,24 +121,6 @@ export const IconPrint = (p: P) => (
   </Base>
 );
 
-export const IconFist = (p: P) => (
-  <Base {...p}>
-    <path d="M6 11a2 2 0 0 1 2-2h8.5a2 2 0 0 1 2 2v4a6 6 0 0 1-6 6h-1a5.5 5.5 0 0 1-5.5-5.5z" />
-    <path d="M9.5 9v2.5M12.5 9v2.5M15.5 9v2.5M6 14.5h5" />
-  </Base>
-);
-export const IconPoint = (p: P) => (
-  <Base {...p}>
-    <path d="M10 12V4.5a1.5 1.5 0 0 1 3 0V12" />
-    <path d="M13 11h3.5a2 2 0 0 1 2 2v2a6 6 0 0 1-6 6h-1a5.5 5.5 0 0 1-5.5-5.5V14a2 2 0 0 1 2-2h2" />
-  </Base>
-);
-export const IconVictory = (p: P) => (
-  <Base {...p}>
-    <path d="M10 12 8 4.8a1.4 1.4 0 0 1 2.7-.8L12.5 10.5M12.5 10.5l1.8-6.4a1.4 1.4 0 0 1 2.7.8L15.5 12" />
-    <path d="M15.5 11.5h1a2 2 0 0 1 2 2V15a6 6 0 0 1-6 6h-1a5.5 5.5 0 0 1-5.5-5.5V14a2 2 0 0 1 2-2h2" />
-  </Base>
-);
 export const IconData = (p: P) => (
   <Base {...p}>
     <ellipse cx="12" cy="5.5" rx="7" ry="2.5" />

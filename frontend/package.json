@@ -4,16 +4,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "predev": "node scripts/copy-mediapipe.mjs",
     "dev": "vite",
-    "dev:https": "node scripts/copy-mediapipe.mjs && vite --host --mode https",
-    "prebuild": "node scripts/copy-mediapipe.mjs",
+    "dev:https": "vite --host --mode https",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "^1.0.1",
+    "@anthropic-ai/sdk": "^0.128.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.6"

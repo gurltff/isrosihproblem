@@ -159,6 +159,11 @@ export interface Inspection {
   notice?: string;
   equipment_detected: boolean;
   equipment_type: string;
+  part_identity?: string;
+  markings?: string;
+  marking_check?: "match" | "mismatch" | "cannot tell" | "no expected part";
+  marking_note?: string;
+  checklist?: { item: string; result: "pass" | "fail" | "n/a"; note: string }[];
   overall: "NOMINAL" | "REVIEW" | "REJECT";
   summary: string;
   findings: Finding[];
@@ -213,11 +218,17 @@ export const api = {
     fd.append("file", file);
     return req<{ batches: BatchMeta[] }>("/api/upload", { method: "POST", body: fd });
   },
-  inspect: (image: Blob, engine: "auto" | "claude" | "local" = "auto") => {
-    if (STATIC) return import("./localInspect").then((m) => m.inspectInBrowser(image));
+  inspect: async (image: Blob, expected?: string) => {
+    if (STATIC) {
+      const v = await import("./vision");
+      const key = v.savedKey();
+      if (key) return v.inspectWithClaudeInBrowser(image, key, expected);
+      return import("./localInspect").then((m) => m.inspectInBrowser(image));
+    }
     const fd = new FormData();
     fd.append("image", image, "frame.jpg");
-    fd.append("engine", engine);
+    fd.append("engine", "auto");
+    if (expected) fd.append("expected", expected);
     return req<Inspection>("/api/vision/inspect", { method: "POST", body: fd });
   },
 };

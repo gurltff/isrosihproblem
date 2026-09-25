@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 import logging
 import os
+from pathlib import Path
 
 import anthropic
 import numpy as np
@@ -27,85 +29,18 @@ log = logging.getLogger(__name__)
 MODEL = os.environ.get("SENTINEL_VISION_MODEL", "claude-opus-5")
 MAX_SIDE = 1280
 
-FINDING_TYPES = [
-    "burn_mark",
-    "thermal_discoloration",
-    "corrosion",
-    "solder_defect",
-    "crack",
-    "contamination",
-    "missing_or_misaligned_part",
-    "lifted_lead",
-    "bulging_or_deformed_package",
-    "other",
-]
+# The inspection brief is shared with the browser build (shared/vision_brief.json).
+BRIEF_FILE = Path(__file__).resolve().parents[2] / "shared" / "vision_brief.json"
+_BRIEF = json.loads(BRIEF_FILE.read_text())
+SYSTEM: str = _BRIEF["system"]
+SCHEMA: dict = _BRIEF["schema"]
+CHECKLIST: list[str] = _BRIEF["checklist"]
 
-SCHEMA = {
-    "type": "object",
-    "properties": {
-        "equipment_detected": {"type": "boolean"},
-        "equipment_type": {"type": "string"},
-        "overall": {"type": "string", "enum": ["NOMINAL", "REVIEW", "REJECT"]},
-        "summary": {"type": "string"},
-        "findings": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "type": {"type": "string", "enum": FINDING_TYPES},
-                    "description": {"type": "string"},
-                    "location": {"type": "string"},
-                    "severity": {"type": "string", "enum": ["low", "medium", "high"]},
-                    "confidence": {"type": "number"},
-                    "box": {
-                        "type": "object",
-                        "properties": {
-                            "x": {"type": "number"},
-                            "y": {"type": "number"},
-                            "w": {"type": "number"},
-                            "h": {"type": "number"},
-                        },
-                        "required": ["x", "y", "w", "h"],
-                        "additionalProperties": False,
-                    },
-                },
-                "required": [
-                    "type",
-                    "description",
-                    "location",
-                    "severity",
-                    "confidence",
-                    "box",
-                ],
-                "additionalProperties": False,
-            },
-        },
-    },
-    "required": ["equipment_detected", "equipment_type", "overall", "summary", "findings"],
-    "additionalProperties": False,
-}
 
-SYSTEM = """You are a quality-assurance inspector for space-grade electronics \
-(PCBs, discrete semiconductors, ICs, connectors, harnesses). You examine one photo \
-and report only visible surface-level anomalies: burn or scorch marks, thermal \
-discolouration, corrosion or oxidation, solder defects (bridges, cold/cracked \
-joints, voids, insufficient or excess solder), cracks in packages or substrate, \
-contamination or flux residue, missing / misaligned / tombstoned parts, lifted \
-leads, and bulging or deformed packages.
-
-Rules:
-- If the photo does not show electronic hardware, set equipment_detected=false, \
-return no findings, and say what you see instead in the summary.
-- Report only what is visible. Do not infer internal faults. Normal features \
-(silkscreen, via holes, black IC packages, gold plating, test points) are not defects.
-- Give each finding a bounding box in normalised image coordinates: x, y = top-left \
-corner, w, h = size, all between 0 and 1.
-- Locations should be concrete ("near pin 3 of the SOIC in the upper-left", \
-"solder joint at the right terminal of the large electrolytic capacitor").
-- confidence is between 0 and 1. Photo quality limits what you can conclude; say \
-so in the summary when glare, blur or distance make inspection unreliable.
-- overall: REJECT if any high-severity defect, REVIEW if anything worth a human \
-look, otherwise NOMINAL."""
+def user_text(expected: str | None) -> str:
+    items = "\n".join(f"{i + 1}. {c}" for i, c in enumerate(CHECKLIST))
+    tail = f"Expected part for this lot: {expected}." if expected else "No expected part was given."
+    return f"Inspect this part. Checklist items, in this order:\n{items}\n{tail}"
 
 
 def claude_available() -> bool:
@@ -121,11 +56,11 @@ def _prepare(raw: bytes) -> tuple[Image.Image, bytes]:
     return img, buf.getvalue()
 
 
-def inspect(raw: bytes, engine: str = "auto") -> dict:
+def inspect(raw: bytes, engine: str = "auto", expected: str | None = None) -> dict:
     img, jpeg = _prepare(raw)
     if engine in ("auto", "claude") and claude_available():
         try:
-            return _inspect_claude(jpeg) | {"engine": "claude", "model": MODEL}
+            return _inspect_claude(jpeg, expected) | {"engine": "claude", "model": MODEL}
         except Exception as e:  # noqa: BLE001 - fall back and tell the user why
             log.exception("Claude vision failed")
             result = _inspect_local(img)
@@ -142,9 +77,7 @@ def inspect(raw: bytes, engine: str = "auto") -> dict:
     return result
 
 
-def _inspect_claude(jpeg: bytes) -> dict:
-    import json
-
+def _inspect_claude(jpeg: bytes, expected: str | None = None) -> dict:
     client = anthropic.Anthropic()
     response = client.beta.messages.create(
         model=MODEL,
@@ -165,7 +98,7 @@ def _inspect_claude(jpeg: bytes) -> dict:
                             "data": base64.standard_b64encode(jpeg).decode(),
                         },
                     },
-                    {"type": "text", "text": "Inspect this hardware for surface anomalies."},
+                    {"type": "text", "text": user_text(expected)},
                 ],
             }
         ],

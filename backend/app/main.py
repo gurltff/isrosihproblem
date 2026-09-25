@@ -218,14 +218,16 @@ def template() -> PlainTextResponse:
 
 
 @app.post("/api/vision/inspect")
-async def inspect(image: UploadFile = File(...), engine: str = Form("auto")) -> dict:
+async def inspect(
+    image: UploadFile = File(...), engine: str = Form("auto"), expected: str | None = Form(None)
+) -> dict:
     raw = await image.read()
     if len(raw) > MAX_UPLOAD:
         raise HTTPException(413, "Image too large (15 MB max)")
     if engine not in ("auto", "claude", "local"):
         raise HTTPException(422, "engine must be auto, claude or local")
     try:
-        return await run_in_threadpool(vision.inspect, raw, engine)
+        return await run_in_threadpool(vision.inspect, raw, engine, expected)
     except OSError as e:
         raise HTTPException(422, f"Not a readable image: {e}") from e
 

@@ -7,6 +7,7 @@ import basicSsl from "@vitejs/plugin-basic-ssl";
 export default defineConfig(({ mode }) => ({
   plugins: [react(), ...(mode === "https" ? [basicSsl()] : [])],
   server: {
+    fs: { allow: [".."] }, // shared/vision_brief.json sits beside frontend/
     proxy: { "/api": "http://127.0.0.1:8000" },
   },
   build: { chunkSizeWarningLimit: 900 },
